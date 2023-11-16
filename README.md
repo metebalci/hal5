@@ -27,17 +27,15 @@ The source code in this repository can be divided into four groups:
 
 - These enums are directly related to hardware but the values of enums are not used directly in hardware operations, thus enums has (on purpose) no values assigned in typedefs.
 
-- No error is returned from most of the API functions. This is because most, if not all, of these functions are related to hardware and there is no temporary errors. A call resulting an error will always result an error with the same parameters, so it should not be handled in the software. Instead, assertions are heavily used to see where the issue is, to be able to understand the problem. For example, if something is supplied for PLL configuration that is impossible to satisfy in the hardware, no error is returned but an assertion is failed within the relevant function.
+- No error is returned from most of the API functions. This is because most, if not all, of these functions are related to hardware and there is no temporary errors. A call resulting an error will always result an error with the same parameters, so it should not be handled in the software. Instead, assertions are often used to see where the issue is. For example, if something is supplied for PLL configuration that is impossible to satisfy in the hardware, no error is returned but an assertion is failed within the relevant function.
 
-- A simple VT100-like console (by default on LPUART1) is provided for information and debug purposes. `printf` writes to this console (LPUART1), and assert works with it as well. The default configuration is 921600 baud, 8N1. `printf` synchronously writes to UART FIFO, and stdout buffering is disabled, so it is not the best performance but nothing is lost. For the terminal emulation on PC, `minicom` can be used with `addcarreturn` option.
+- A simple VT100-like console (on LPUART1) is provided for information and debug purposes. `printf` writes to this console (LPUART1), and assert works with it as well. It can be used with 921600 baud and the default configuration is 8N1. `printf` synchronously writes to UART FIFO, and stdout buffering is disabled, so it is not the best performance but nothing is lost. For the terminal emulation on PC, `minicom` can be used with `addcarreturn` option.
 
-- API provides functions returning the actual frequency of various clocks in the clock tree e.g. `mcc_rcc_pll1_p_ck()`.
+- API provides functions returning the actual frequency of various clocks in the clock tree e.g. `hal5_rcc_pll1_p_ck()`. These values are not cached (and there is no clock update function) but queried from the hardware when requested.
 
-- Only `uint32_t`, `uint8_t`, `bool` and `enum` types are used. `uint8_t` is used only for byte buffers and only where it is definitely appropriate (like reading/writing from/to UART), if unsure or for hardware related things uint32_t is preferred.
+- The system core clock (sys_ck) can be changed with `hal5_change_sys_ck` which automatically adjust flash latency and voltage scaling.
 
-- The system core clock (sys_ck) can be changed with `mcu_change_sys_ck` which automatically adjust flash latency and voltage scaling.
-
-- CMSIS SysTick_Config is not used.
+- CMSIS SysTick_Config is not used but a System tick (actually two ticks) is implemented, one in millisecond, the other is in second resolution.
 
 - The startup code is C-based, not assembly.
 
@@ -47,7 +45,7 @@ Based on CMSIS C-based startup (`startup_ARMCM33.c`) and linker script (`gnu_arm
 
 Reset_Handler calls `__PROGRAM_START`, this is defined as `__cmsis_start`. This is implemented in `cmsis_gcc.h`, and it uses copy_table and zero_table for .data and .bss initialization.
 
-`SystemInit` function call is kept but it is made a weak symbol, so it is not a must. Most initialization is expected to be done in C `main`. Because the clock speed is not increased, .data and .bss initialization are slower. `SystemInit` can still be used if absolutely necessary. FPU access is always enabled if FPU is present and unaligned accesses are disabled (SCB_CCR_UNALIGN_TRP).
+`SystemInit` function call is kept but it is made a weak symbol, so it is not a must. Most initialization is expected to be done in C `main`. Because the clock speed is not increased, .data and .bss initialization are slower. `SystemInit` can still be used if absolutely necessary. FPU access is always enabled if FPU is present (`__FPU_PRESENT`).
 
 # USB Support
 

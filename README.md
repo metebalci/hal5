@@ -49,9 +49,9 @@ Reset_Handler calls `__PROGRAM_START`, this is defined as `__cmsis_start`. This 
 
 # USB Support
 
-USB Device mode is supported. Endpoint 0 / Enumeration is implemented by `hal5_usb_device_ep0.c`.
+USB Device mode is supported. Endpoint 0 / Enumeration support is implemented by `hal5_usb_device_ep0.c`. A device should only implement a few functions and provide descriptors, everything else for endpoint 0 is already implemented.
 
-An example USB Device is implemented by `example_usb_device.c`.
+An example USB Device is given in `example_usb_device.c`.
 
 USB Host mode is not yet supported.
 

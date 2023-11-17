@@ -248,9 +248,13 @@ uint8_t hal5_usb_device_get_current_configuration_value_ex()
     return 0;
 }
 
-void hal5_usb_device_set_configuration_ex(
+bool hal5_usb_device_set_configuration_ex(
         uint8_t configuration_value)
 {
+    assert ((configuration_value == 0) ||
+            (configuration_value == c1d.bConfigurationValue));
+
+    return true;
 }
 
 void hal5_usb_device_out_transaction_completed_ex(

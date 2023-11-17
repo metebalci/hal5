@@ -60,11 +60,58 @@ void hal5_usb_device_set_address(uint8_t address)
     }
 }
 
-void hal5_usb_device_set_configuration(uint8_t configuration_value)
+bool hal5_usb_device_set_configuration(uint8_t configuration_value)
 {
-    hal5_usb_device_set_configuration_ex(configuration_value);
+    assert ((usb_device_state == usb_device_state_address) ||
+            (usb_device_state == usb_device_state_configured));
 
-    usb_device_state = usb_device_state_configured;
+    if (usb_device_state == usb_device_state_configured)
+    {
+        if (configuration_value == 0)
+        {
+            // do not care return value
+            // only calling to deselect the current configuration if needed
+            hal5_usb_device_set_configuration_ex(configuration_value);
+            usb_device_state = usb_device_state_address;
+            return true;
+        }
+        else
+        {
+            if (hal5_usb_device_set_configuration_ex(configuration_value))
+            {
+                // no state changed
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
+    else if (usb_device_state == usb_device_state_address)
+    {
+        if (configuration_value != 0)
+        {
+            if (hal5_usb_device_set_configuration_ex(configuration_value))
+            {
+                usb_device_state = usb_device_state_configured;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            // stay in address state
+            return true;
+        }
+    }
+    else
+    {
+        assert (false);
+    }
 }
 
 hal5_usb_device_state_t hal5_usb_device_get_state()

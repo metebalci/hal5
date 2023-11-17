@@ -456,15 +456,37 @@ static void device_set_configuration(
         hal5_usb_transaction_t *trx)
 {
     standard_request = standard_request_device_set_configuration;
-    
+
+    // upper bytes are reserved and must be zero
+    assert ((trx->device_request->wValue & 0xFF00) == 0);
+    assert (trx->device_request->wIndex == 0);
+    assert (trx->device_request->wLength == 0);
+
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_configured:
+            break;
+
+        case usb_device_state_address:
+            break;
+
+        default: assert (false);
+    }
+
+    // only lower byte is used
     const uint8_t configuration_value = 
         trx->device_request->wValue & 0xFF;
 
     printf("SET_CONFIGURATION: %u\n", configuration_value);
 
-    hal5_usb_device_set_configuration(configuration_value);
-
-    setup_transaction_reply_in_with_zero(trx);
+    if (hal5_usb_device_set_configuration(configuration_value))
+    {
+        setup_transaction_reply_in_with_zero(trx);
+    }
+    else
+    {
+        setup_transaction_stall_in(trx);
+    }
 }
 
 static void interface_get_status(

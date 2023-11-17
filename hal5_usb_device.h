@@ -126,10 +126,14 @@ bool hal5_usb_device_get_synch_frame_ex(
         uint16_t* frame_number);
 
 // return 0 if not configured
-uint8_t hal5_usb_device_get_current_configuration_value_ex() __WEAK;
+uint8_t hal5_usb_device_get_current_configuration_value_ex();
 
 bool hal5_usb_device_set_configuration_ex(
-        uint8_t configuration_value) __WEAK;
+        uint8_t configuration_value);
+
+bool hal5_usb_device_set_interface_ex(
+        uint8_t interface,
+        uint8_t alternate_setting);
 
 void hal5_usb_device_out_transaction_completed_ex(
         hal5_usb_transaction_t *trx) __WEAK;

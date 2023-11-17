@@ -257,6 +257,14 @@ bool hal5_usb_device_set_configuration_ex(
     return true;
 }
 
+bool hal5_usb_device_set_interface_ex(
+        uint8_t interface,
+        uint8_t alternate_setting)
+{
+    return false;
+}
+
+
 void hal5_usb_device_out_transaction_completed_ex(
         hal5_usb_transaction_t* trx)
 {

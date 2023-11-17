@@ -575,7 +575,33 @@ static void interface_set_interface(
 {
     standard_request = standard_request_interface_set_interface;
 
-    setup_transaction_stall_in(trx);
+    // this does not write in the spec
+    // but bAlternateSetting is a byte, so I assume it like this
+    assert ((trx->device_request->wValue & 0xFF00) == 0);
+    assert (trx->device_request->wIndex <= 127);
+    assert (trx->device_request->wLength == 0);
+
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_configured:
+            break;
+
+        case usb_device_state_address:
+            setup_transaction_stall_in(trx);
+            return;
+
+        default: assert (false);
+    }
+
+    const uint8_t alternate_setting = 
+        trx->device_request->wValue & 0xFF;
+
+    bool success = hal5_usb_device_set_interface_ex(
+            TRX_WINDEX_AS_INTERFACE_NUMBER(trx),
+            alternate_setting);
+
+    if (success) setup_transaction_reply_in_with_zero(trx);
+    else setup_transaction_stall_in(trx);
 }
 
 static void endpoint_get_status(

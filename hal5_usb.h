@@ -27,6 +27,10 @@
 
 #define MCU_USB_STRING_DESCRIPTOR_MAX_UTF16_LENGTH 64
 
+#define FEATURE_SELECTOR_ENDPOINT_HALT          (0)
+#define FEATURE_SELECTOR_DEVICE_REMOTE_WAKEUP   (1) 
+#define FEATURE_SELECTOR_TEST_MODE              (2) 
+
 // usb channel/endpoint registers
 // it is easier to access like this
 #define USB_CHEP  ((uint32_t*) USB_DRD_BASE)

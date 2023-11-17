@@ -26,10 +26,6 @@
 
 #include "hal5_usb.h"
 
-#define FEATURE_SELECTOR_ENDPOINT_HALT          (0)
-#define FEATURE_SELECTOR_DEVICE_REMOTE_WAKEUP   (1) 
-#define FEATURE_SELECTOR_TEST_MODE              (2) 
-
 #ifdef __cplusplus
 extern "C" {
 #endif

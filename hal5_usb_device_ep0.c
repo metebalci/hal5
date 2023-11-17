@@ -27,6 +27,11 @@
 #include "hal5_usb.h"
 #include "hal5_usb_device.h"
 
+#define TRX_WINDEX_AS_ENDPOINT_NUMBER(trx) \
+    ((uint8_t) (trx->device_request->wIndex & 0x0F))
+#define TRX_WINDEX_AS_ENDPOINT_DIR_IN(trx) \
+    ((bool) (trx->device_request->wIndex & 0x80))
+
 // temporary storage of device_address
 // stored at SETUP of SET ADDRESS
 // used at IN_0 of SET ADDRESS
@@ -149,7 +154,21 @@ static void device_get_status(
 {
     standard_request = standard_request_device_get_status;
 
-    uint8_t status[2] = {0x00, 0x01};
+    assert (trx->device_request->wValue == 0);
+    assert (trx->device_request->wIndex == 0);
+    assert (trx->device_request->wLength == 2);
+
+    uint8_t status[2] = {0};
+
+    if (hal5_usb_device_is_device_self_powered_ex()) 
+    {
+        status[1] |= (1 << 0);
+    }
+
+    if (hal5_usb_device_is_device_remote_wakeup_set_ex()) 
+    {
+        status[1] |= (1 << 1);
+    }
 
     setup_transaction_reply_in(trx, status, 2);
 }
@@ -159,12 +178,26 @@ static void device_clear_feature(
 {
     standard_request = standard_request_device_clear_feature;
 
+    assert (trx->device_request->wIndex == 0);
+    assert (trx->device_request->wLength == 0);
+
     const uint16_t feature_selector = 
         trx->device_request->wValue;
 
-    hal5_usb_device_clear_device_feature_ex(feature_selector);
-
-    setup_transaction_reply_in_with_zero(trx);
+    if (feature_selector == FEATURE_SELECTOR_DEVICE_REMOTE_WAKEUP) 
+    {
+        hal5_usb_device_clear_device_remote_wakeup_ex();
+        setup_transaction_reply_in_with_zero(trx);
+    }
+    else if (feature_selector == FEATURE_SELECTOR_TEST_MODE)
+    {
+        // test mode cannot be cleared by Clear Feature
+        setup_transaction_stall_in(trx);
+    }
+    else
+    {
+        setup_transaction_stall_in(trx);
+    }
 }
 
 static void device_set_feature(
@@ -172,12 +205,26 @@ static void device_set_feature(
 {
     standard_request = standard_request_device_set_feature;
 
+    assert (trx->device_request->wIndex == 0);
+    assert (trx->device_request->wLength == 0);
+
     const uint16_t feature_selector = 
         trx->device_request->wValue;
 
-    hal5_usb_device_set_device_feature_ex(feature_selector);
-
-    setup_transaction_reply_in_with_zero(trx);
+    if (feature_selector == FEATURE_SELECTOR_DEVICE_REMOTE_WAKEUP) 
+    {
+        hal5_usb_device_set_device_remote_wakeup_ex();
+        setup_transaction_reply_in_with_zero(trx);
+    }
+    else if (feature_selector == FEATURE_SELECTOR_TEST_MODE)
+    {
+        hal5_usb_device_set_test_mode_ex();
+        setup_transaction_reply_in_with_zero(trx);
+    }
+    else
+    {
+        setup_transaction_stall_in(trx);
+    }
 }
 
 static void device_set_address(
@@ -374,7 +421,12 @@ static void interface_get_status(
 {
     standard_request = standard_request_interface_get_status;
 
-    uint8_t status[2] = {0x00, 0x01};
+    assert (trx->device_request->wValue == 0);
+    //assert (trx->device_request->wIndex == 0);
+    assert (trx->device_request->wLength == 2);
+
+    // interface status is all reserved to be zero
+    uint8_t status[2] = {0};
 
     setup_transaction_reply_in(trx, status, 2);
 }
@@ -384,12 +436,13 @@ static void interface_clear_feature(
 {
     standard_request = standard_request_interface_clear_feature;
 
+    assert (trx->device_request->wLength == 0);
+
     const uint16_t feature_selector = 
         trx->device_request->wValue;
-    
-    hal5_usb_device_clear_interface_feature_ex(feature_selector);
 
-    setup_transaction_reply_in_with_zero(trx);
+    // there are no features for interface
+    setup_transaction_stall_in(trx);
 }
 
 static void interface_set_feature(
@@ -397,12 +450,13 @@ static void interface_set_feature(
 {
     standard_request = standard_request_interface_set_feature;
 
+    assert (trx->device_request->wLength == 0);
+
     const uint16_t feature_selector = 
         trx->device_request->wValue;
 
-    hal5_usb_device_set_interface_feature_ex(feature_selector);
-
-    setup_transaction_reply_in_with_zero(trx);
+    // there are no features for interface
+    setup_transaction_stall_in(trx);
 }
 
 static void interface_get_interface(
@@ -426,7 +480,18 @@ static void endpoint_get_status(
 {
     standard_request = standard_request_endpoint_get_status;
 
-    uint8_t status[2] = {0x00, 0x01};
+    assert (trx->device_request->wValue == 0);
+    //assert (trx->device_request->wIndex == 0);
+    assert (trx->device_request->wLength == 2);
+
+    uint8_t status[2] = {0};
+
+    if (hal5_usb_device_is_endpoint_halt_set_ex(
+                TRX_WINDEX_AS_ENDPOINT_NUMBER(trx), 
+                TRX_WINDEX_AS_ENDPOINT_DIR_IN(trx)))
+    {
+        status[1] |= (1 << 0);
+    }
 
     setup_transaction_reply_in(trx, status, 2);
 }
@@ -436,12 +501,23 @@ static void endpoint_clear_feature(
 {
     standard_request = standard_request_endpoint_clear_feature;
 
+    assert (trx->device_request->wLength == 0);
+
     const uint16_t feature_selector = 
         trx->device_request->wValue;
 
-    hal5_usb_device_clear_endpoint_feature_ex(feature_selector);
+    if (feature_selector == FEATURE_SELECTOR_ENDPOINT_HALT)
+    {
+        hal5_usb_device_clear_endpoint_halt_ex(
+                TRX_WINDEX_AS_ENDPOINT_NUMBER(trx), 
+                TRX_WINDEX_AS_ENDPOINT_DIR_IN(trx));
+        setup_transaction_reply_in_with_zero(trx);
+    }
+    else
+    {
+        setup_transaction_stall_in(trx);
+    }
 
-    setup_transaction_reply_in_with_zero(trx);
 }
 
 static void endpoint_set_feature(
@@ -449,12 +525,21 @@ static void endpoint_set_feature(
 {
     standard_request = standard_request_endpoint_set_feature;
 
-    const uint16_t feature_selector = 
-        trx->device_request->wValue;
+    assert (trx->device_request->wLength == 0);
 
-    hal5_usb_device_set_endpoint_feature_ex(feature_selector);
+    const uint16_t feature_selector = trx->device_request->wValue;
 
-    setup_transaction_reply_in_with_zero(trx);
+    if (feature_selector == FEATURE_SELECTOR_ENDPOINT_HALT)
+    {
+        hal5_usb_device_set_endpoint_halt_ex(
+                TRX_WINDEX_AS_ENDPOINT_NUMBER(trx), 
+                TRX_WINDEX_AS_ENDPOINT_DIR_IN(trx));
+        setup_transaction_reply_in_with_zero(trx);
+    }
+    else
+    {
+        setup_transaction_stall_in(trx);
+    }
 }
 
 static void endpoint_synch_frame(

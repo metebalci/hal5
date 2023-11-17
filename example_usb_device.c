@@ -183,6 +183,52 @@ bool hal5_usb_device_get_string_descriptor_ex(
     return true;
 }
 
+bool hal5_usb_device_is_device_self_powered_ex() 
+{ 
+    return true; 
+}
+
+void hal5_usb_device_clear_endpoint_halt_ex(
+        uint8_t endpoint,
+        bool dir_in)
+{
+}
+
+void hal5_usb_device_set_endpoint_halt_ex(
+        uint8_t endpoint,
+        bool dir_in)
+{
+}
+
+bool hal5_usb_device_is_endpoint_halt_set_ex(
+        uint8_t endpoint, 
+        bool dir_in) 
+{
+    return false;
+}
+
+void hal5_usb_device_clear_device_remote_wakeup_ex()
+{
+}
+
+void hal5_usb_device_set_device_remote_wakeup_ex()
+{
+}
+
+bool hal5_usb_device_is_device_remote_wakeup_set_ex()
+{
+    return false;
+}
+
+void hal5_usb_device_set_test_mode_ex()
+{
+}
+
+bool hal5_usb_device_is_test_mode_set_ex()
+{
+    return false;
+}
+
 uint8_t hal5_usb_device_get_current_configuration_value_ex()
 {
     return 0;
@@ -192,13 +238,6 @@ void hal5_usb_device_set_configuration_ex(
         uint8_t configuration_value)
 {
 }
-
-void hal5_usb_device_clear_device_feature_ex(uint16_t feature_selector) {}
-void hal5_usb_device_set_device_feature_ex(uint16_t feature_selector) {}
-void hal5_usb_device_clear_interface_feature_ex(uint16_t feature_selector) {}
-void hal5_usb_device_set_interface_feature_ex(uint16_t feature_selector) {}
-void hal5_usb_device_clear_endpoint_feature_ex(uint16_t feature_selector) {}
-void hal5_usb_device_set_endpoint_feature_ex(uint16_t feature_selector) {}
 
 void hal5_usb_device_out_transaction_completed_ex(
         hal5_usb_transaction_t* trx)

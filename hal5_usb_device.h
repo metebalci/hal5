@@ -48,6 +48,8 @@ void hal5_usb_device_configure(void);
 void hal5_usb_device_connect(void);
 void hal5_usb_device_disconnect(void);
 
+hal5_usb_device_state_t hal5_usb_device_get_state();
+
 // these are called from endpoint 0 implementation
 // do not call these if you do not know what you are doing
 void hal5_usb_device_set_address(uint8_t device_address);
@@ -95,10 +97,10 @@ bool hal5_usb_device_get_string_descriptor_ex(
 bool hal5_usb_device_is_device_self_powered_ex();
 
 // ENDPOINT_HALT
-void hal5_usb_device_clear_endpoint_halt_ex(
+bool hal5_usb_device_clear_endpoint_halt_ex(
         uint8_t endpoint, 
         bool dir_in);
-void hal5_usb_device_set_endpoint_halt_ex(
+bool hal5_usb_device_set_endpoint_halt_ex(
         uint8_t endpoint, 
         bool dir_in);
 bool hal5_usb_device_is_endpoint_halt_set_ex(
@@ -106,15 +108,16 @@ bool hal5_usb_device_is_endpoint_halt_set_ex(
         bool dir_in);
 
 // DEVICE_REMOTE_WAKEUP
-void hal5_usb_device_clear_device_remote_wakeup_ex();
-void hal5_usb_device_set_device_remote_wakeup_ex();
+bool hal5_usb_device_clear_device_remote_wakeup_ex();
+bool hal5_usb_device_set_device_remote_wakeup_ex();
 bool hal5_usb_device_is_device_remote_wakeup_set_ex();
 
 // TEST_MODE
 // TEST_MODE cannot be cleared by Clear Feature
-void hal5_usb_device_set_test_mode_ex();
+bool hal5_usb_device_set_test_mode_ex();
 bool hal5_usb_device_is_test_mode_set_ex();
 
+// return 0 if not configured
 uint8_t hal5_usb_device_get_current_configuration_value_ex() __WEAK;
 
 void hal5_usb_device_set_configuration_ex(

@@ -48,6 +48,11 @@ void hal5_usb_device_set_configuration(uint8_t configuration_value)
     usb_device_state = usb_device_state_configured;
 }
 
+hal5_usb_device_state_t hal5_usb_device_get_state()
+{
+    return usb_device_state;
+}
+
 // ea is argument here to have same structure as out_transaction_completed
 // but ea is ensured/asserted to be 0 in the interrupt handler
 static void hal5_usb_device_setup_transaction_completed(

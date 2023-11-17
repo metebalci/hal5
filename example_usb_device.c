@@ -188,16 +188,18 @@ bool hal5_usb_device_is_device_self_powered_ex()
     return true; 
 }
 
-void hal5_usb_device_clear_endpoint_halt_ex(
+bool hal5_usb_device_clear_endpoint_halt_ex(
         uint8_t endpoint,
         bool dir_in)
 {
+    return false;
 }
 
-void hal5_usb_device_set_endpoint_halt_ex(
+bool hal5_usb_device_set_endpoint_halt_ex(
         uint8_t endpoint,
         bool dir_in)
 {
+    return false;
 }
 
 bool hal5_usb_device_is_endpoint_halt_set_ex(
@@ -207,12 +209,14 @@ bool hal5_usb_device_is_endpoint_halt_set_ex(
     return false;
 }
 
-void hal5_usb_device_clear_device_remote_wakeup_ex()
+bool hal5_usb_device_clear_device_remote_wakeup_ex()
 {
+    return false;
 }
 
-void hal5_usb_device_set_device_remote_wakeup_ex()
+bool hal5_usb_device_set_device_remote_wakeup_ex()
 {
+    return false;
 }
 
 bool hal5_usb_device_is_device_remote_wakeup_set_ex()
@@ -220,8 +224,9 @@ bool hal5_usb_device_is_device_remote_wakeup_set_ex()
     return false;
 }
 
-void hal5_usb_device_set_test_mode_ex()
+bool hal5_usb_device_set_test_mode_ex()
 {
+    return false;
 }
 
 bool hal5_usb_device_is_test_mode_set_ex()

@@ -28,9 +28,13 @@
 #include "hal5_usb_device.h"
 
 #define TRX_WINDEX_AS_ENDPOINT_NUMBER(trx) \
-    ((uint8_t) (trx->device_request->wIndex & 0x0F))
+    ((uint8_t) (trx->device_request->wIndex & 0x000F))
+
 #define TRX_WINDEX_AS_ENDPOINT_DIR_IN(trx) \
-    ((bool) (trx->device_request->wIndex & 0x80))
+    ((bool) (trx->device_request->wIndex & 0x0080))
+
+#define TRX_WINDEX_AS_INTERFACE_NUMBER(trx) \
+    ((uint8_t) (trx->device_request->wIndex & 0x00FF))
 
 // temporary storage of device_address
 // stored at SETUP of SET ADDRESS
@@ -181,23 +185,31 @@ static void device_clear_feature(
     assert (trx->device_request->wIndex == 0);
     assert (trx->device_request->wLength == 0);
 
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_configured: 
+        case usb_device_state_address: 
+            break;
+        default: assert (false);
+    }
+
     const uint16_t feature_selector = 
         trx->device_request->wValue;
 
+    bool success = false;
+
     if (feature_selector == FEATURE_SELECTOR_DEVICE_REMOTE_WAKEUP) 
     {
-        hal5_usb_device_clear_device_remote_wakeup_ex();
-        setup_transaction_reply_in_with_zero(trx);
+        success = hal5_usb_device_clear_device_remote_wakeup_ex();
     }
     else if (feature_selector == FEATURE_SELECTOR_TEST_MODE)
     {
         // test mode cannot be cleared by Clear Feature
         setup_transaction_stall_in(trx);
     }
-    else
-    {
-        setup_transaction_stall_in(trx);
-    }
+
+    if (success) setup_transaction_reply_in_with_zero(trx);
+    else setup_transaction_stall_in(trx);
 }
 
 static void device_set_feature(
@@ -208,23 +220,30 @@ static void device_set_feature(
     assert (trx->device_request->wIndex == 0);
     assert (trx->device_request->wLength == 0);
 
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_configured: 
+        case usb_device_state_address: 
+            break;
+        default: assert (false);
+    }
+
     const uint16_t feature_selector = 
         trx->device_request->wValue;
 
+    bool success = false;
+
     if (feature_selector == FEATURE_SELECTOR_DEVICE_REMOTE_WAKEUP) 
     {
-        hal5_usb_device_set_device_remote_wakeup_ex();
-        setup_transaction_reply_in_with_zero(trx);
+        success = hal5_usb_device_set_device_remote_wakeup_ex();
     }
     else if (feature_selector == FEATURE_SELECTOR_TEST_MODE)
     {
-        hal5_usb_device_set_test_mode_ex();
-        setup_transaction_reply_in_with_zero(trx);
+        success = hal5_usb_device_set_test_mode_ex();
     }
-    else
-    {
-        setup_transaction_stall_in(trx);
-    }
+
+    if (success) setup_transaction_reply_in_with_zero(trx);
+    else setup_transaction_stall_in(trx);
 }
 
 static void device_set_address(
@@ -393,8 +412,25 @@ static void device_get_configuration(
 {
     standard_request = standard_request_device_get_configuration;
 
-    const uint8_t configuration_value = 
-        hal5_usb_device_get_current_configuration_value_ex();
+    assert (trx->device_request->wValue == 0);
+    assert (trx->device_request->wIndex == 0);
+    assert (trx->device_request->wLength == 1);
+
+    uint8_t configuration_value = 0;
+
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_configured:
+            configuration_value = 
+                hal5_usb_device_get_current_configuration_value_ex();
+            break;
+
+        case usb_device_state_address:
+            configuration_value = 0;
+            break;
+
+        default: assert (false);
+    }
 
     setup_transaction_reply_in(trx, &configuration_value, 1);
 }
@@ -438,8 +474,15 @@ static void interface_clear_feature(
 
     assert (trx->device_request->wLength == 0);
 
-    const uint16_t feature_selector = 
-        trx->device_request->wValue;
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_configured:
+        case usb_device_state_address:
+            break;
+
+        default: assert (false);
+
+    }
 
     // there are no features for interface
     setup_transaction_stall_in(trx);
@@ -452,8 +495,15 @@ static void interface_set_feature(
 
     assert (trx->device_request->wLength == 0);
 
-    const uint16_t feature_selector = 
-        trx->device_request->wValue;
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_configured:
+        case usb_device_state_address:
+            break;
+
+        default: assert (false);
+
+    }
 
     // there are no features for interface
     setup_transaction_stall_in(trx);
@@ -503,20 +553,37 @@ static void endpoint_clear_feature(
 
     assert (trx->device_request->wLength == 0);
 
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_configured:
+            break;
+
+        case usb_device_state_address:
+            if (TRX_WINDEX_AS_ENDPOINT_NUMBER(trx) != 0) 
+            {
+                setup_transaction_stall_in(trx);
+                return;
+            }
+            break;
+
+        default: assert (false);
+
+    }
+
     const uint16_t feature_selector = 
         trx->device_request->wValue;
 
+    bool success = false;
+
     if (feature_selector == FEATURE_SELECTOR_ENDPOINT_HALT)
     {
-        hal5_usb_device_clear_endpoint_halt_ex(
+        success = hal5_usb_device_clear_endpoint_halt_ex(
                 TRX_WINDEX_AS_ENDPOINT_NUMBER(trx), 
                 TRX_WINDEX_AS_ENDPOINT_DIR_IN(trx));
-        setup_transaction_reply_in_with_zero(trx);
     }
-    else
-    {
-        setup_transaction_stall_in(trx);
-    }
+
+    if (success) setup_transaction_reply_in_with_zero(trx);
+    else setup_transaction_stall_in(trx);
 
 }
 
@@ -527,19 +594,36 @@ static void endpoint_set_feature(
 
     assert (trx->device_request->wLength == 0);
 
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_configured:
+            break;
+
+        case usb_device_state_address:
+            if (TRX_WINDEX_AS_ENDPOINT_NUMBER(trx) != 0) 
+            {
+                setup_transaction_stall_in(trx);
+                return;
+            }
+            break;
+
+        default: assert (false);
+
+    }
+
     const uint16_t feature_selector = trx->device_request->wValue;
+
+    bool success = false;
 
     if (feature_selector == FEATURE_SELECTOR_ENDPOINT_HALT)
     {
-        hal5_usb_device_set_endpoint_halt_ex(
+        success = hal5_usb_device_set_endpoint_halt_ex(
                 TRX_WINDEX_AS_ENDPOINT_NUMBER(trx), 
                 TRX_WINDEX_AS_ENDPOINT_DIR_IN(trx));
-        setup_transaction_reply_in_with_zero(trx);
     }
-    else
-    {
-        setup_transaction_stall_in(trx);
-    }
+
+    if (success) setup_transaction_reply_in_with_zero(trx);
+    else setup_transaction_stall_in(trx);
 }
 
 static void endpoint_synch_frame(

@@ -105,7 +105,8 @@ bool hal5_usb_device_set_endpoint_halt_ex(
         bool dir_in);
 bool hal5_usb_device_is_endpoint_halt_set_ex(
         uint8_t endpoint,
-        bool dir_in);
+        bool dir_in,
+        bool* is_set);
 
 // DEVICE_REMOTE_WAKEUP
 bool hal5_usb_device_clear_device_remote_wakeup_ex();

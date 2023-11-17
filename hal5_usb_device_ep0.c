@@ -536,14 +536,22 @@ static void endpoint_get_status(
 
     uint8_t status[2] = {0};
 
-    if (hal5_usb_device_is_endpoint_halt_set_ex(
-                TRX_WINDEX_AS_ENDPOINT_NUMBER(trx), 
-                TRX_WINDEX_AS_ENDPOINT_DIR_IN(trx)))
-    {
-        status[1] |= (1 << 0);
-    }
+    bool is_halt_set;
 
-    setup_transaction_reply_in(trx, status, 2);
+    bool success = hal5_usb_device_is_endpoint_halt_set_ex(
+            TRX_WINDEX_AS_ENDPOINT_NUMBER(trx), 
+            TRX_WINDEX_AS_ENDPOINT_DIR_IN(trx),
+            &is_halt_set);
+
+    if (success)
+    {
+        if (is_halt_set) status[1] |= (1 << 0);
+        setup_transaction_reply_in(trx, status, 2);
+    }
+    else
+    {
+        setup_transaction_stall_in(trx);
+    }
 }
 
 static void endpoint_clear_feature(

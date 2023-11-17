@@ -162,6 +162,14 @@ static void device_get_status(
     assert (trx->device_request->wIndex == 0);
     assert (trx->device_request->wLength == 2);
 
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_configured: 
+        case usb_device_state_address: 
+            break;
+        default: assert (false);
+    }
+
     uint8_t status[2] = {0};
 
     if (hal5_usb_device_is_device_self_powered_ex()) 
@@ -461,6 +469,22 @@ static void interface_get_status(
     //assert (trx->device_request->wIndex == 0);
     assert (trx->device_request->wLength == 2);
 
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_configured: 
+            break;
+
+        case usb_device_state_address: 
+            if (TRX_WINDEX_AS_INTERFACE_NUMBER(trx) != 0)
+            {
+                setup_transaction_stall_in(trx);
+                return;
+            }
+            break;
+
+        default: assert (false);
+    }
+
     // interface status is all reserved to be zero
     uint8_t status[2] = {0};
 
@@ -533,6 +557,22 @@ static void endpoint_get_status(
     assert (trx->device_request->wValue == 0);
     //assert (trx->device_request->wIndex == 0);
     assert (trx->device_request->wLength == 2);
+
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_configured: 
+            break;
+
+        case usb_device_state_address: 
+            if (TRX_WINDEX_AS_ENDPOINT_NUMBER(trx) != 0)
+            {
+                setup_transaction_stall_in(trx);
+                return;
+            }
+            break;
+
+        default: assert (false);
+    }
 
     uint8_t status[2] = {0};
 

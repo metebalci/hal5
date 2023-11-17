@@ -47,14 +47,6 @@ Reset_Handler calls `__PROGRAM_START`, this is defined as `__cmsis_start`. This 
 
 `SystemInit` function call is kept but it is made a weak symbol, so it is not a must. Most initialization is expected to be done in C `main`. Because the clock speed is not increased, .data and .bss initialization are slower. `SystemInit` can still be used if absolutely necessary. FPU access is always enabled if FPU is present (`__FPU_PRESENT`).
 
-# USB Support
-
-USB Device mode is supported. Endpoint 0 / Enumeration support is implemented by `hal5_usb_device_ep0.c`. A device should only implement a few functions and provide descriptors, everything else for endpoint 0 is already implemented.
-
-An example USB Device is given in `example_usb_device.c`.
-
-USB Host mode is not yet supported.
-
 # Peripherals Support
 
 Core functionality of small number of peripherals are supported.
@@ -63,6 +55,58 @@ Core functionality of small number of peripherals are supported.
 - I2C supports I2C2, because it is convenient to use I2C2 pins on NUCLEO-H563ZI board.
 
 Peripheral routines are not runtime configurable in the sense that I2C support cannot be changed to I2C1 without re-compiling the library.
+
+# USB Support
+
+USB Host mode is not yet supported.
+
+USB Device mode is supported as follows.
+
+## USB Device Mode
+
+### Endpoint 0 / Default Control Pipe
+
+Endpoint 0, thus default control pipe, is abstracted and implemented by `hal5_usb_device_ep0.c`. This is to support any type of devices, interfaces and endpoints.
+
+#### Default Control Pipe Status
+
+All (standard) USB device requests (USB 2.0 9.4) are implemented.
+
+No-data device requests:
+
+- `Clear Feature`
+- `Set Feature`
+- `Set Address`
+- `Set Configuration`
+- `Set Interface`
+
+are implemented with complete parameter and state checks according to USB 2.0 spec.
+
+All features in USB 2.0 (`Endpoint Halt`, `Device Remote Wakeup`, `Test Mode`) is passed to the USB device implementation. Test mode is not implemented.
+
+`Set Address` and `Set Configuration` correctly handles state changes to/from address and from/to configured depending on the current state, the value of device address and configuration value.
+
+`Set Interface` is passed to the USB device implementation.
+
+Control write request `Set Descriptor` is implemented.
+
+Control read requests:
+
+- `Get Status`
+- `Get Descriptor`
+- `Get Configuration`
+- `Get Interface`
+- `Synch Frame`
+
+are implemented.
+
+### USB Device
+
+A device should only provide descriptors and implement a few functions given in `hal5_usb_device.h` with `_ex` suffix.
+
+At the moment, only control and bulk transfer types will be supported.
+
+An example USB Device is given in `example_usb_device.c`.
 
 # Build and Test
 

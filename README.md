@@ -64,10 +64,6 @@ Core functionality of small number of peripherals are supported.
 
 Peripheral routines are not runtime configurable in the sense that I2C support cannot be changed to I2C1 without re-compiling the library.
 
-# Debug
-
-There are "printf" statements that eventually logs them to console (LPUART1) in the code. These are either limited to "_dump_info" style calls or can be enabled with a compile-time flag e.g. `__HAL5_DEBUG_USB__`.
-
 # Build and Test
 
 [ARM GNU Toolchain](https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads) is required to build the source code. Other compilers are not tested and probably will require small changes.

@@ -88,7 +88,7 @@ All features in USB 2.0 (`Endpoint Halt`, `Device Remote Wakeup`, `Test Mode`) i
 
 `Set Interface` is passed to the USB device implementation.
 
-Control write request `Set Descriptor` is implemented.
+Control write request `Set Descriptor` is optional and it is implemented as always returning a Request Error (STALL). Thus, it cannot be used by a USB Device.
 
 Control read requests:
 

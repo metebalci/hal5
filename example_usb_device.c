@@ -235,6 +235,14 @@ bool hal5_usb_device_is_test_mode_set_ex()
     return false;
 }
 
+bool hal5_usb_device_get_synch_frame_ex(
+        uint8_t endpoint,
+        bool dir_in,
+        uint16_t* frame_number)
+{
+    return false;
+}
+
 uint8_t hal5_usb_device_get_current_configuration_value_ex()
 {
     return 0;

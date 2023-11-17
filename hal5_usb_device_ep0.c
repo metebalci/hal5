@@ -555,7 +555,6 @@ static void endpoint_get_status(
     standard_request = standard_request_endpoint_get_status;
 
     assert (trx->device_request->wValue == 0);
-    //assert (trx->device_request->wIndex == 0);
     assert (trx->device_request->wLength == 2);
 
     switch (hal5_usb_device_get_state())
@@ -679,7 +678,34 @@ static void endpoint_synch_frame(
 {
     standard_request = standard_request_endpoint_synch_frame;
 
-    setup_transaction_stall_in(trx);
+    assert (trx->device_request->wValue == 0);
+    assert (trx->device_request->wLength == 2);
+
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_configured: 
+            break;
+
+        case usb_device_state_address: 
+            setup_transaction_stall_in(trx);
+            return;
+
+        default: assert (false);
+    }
+
+    uint16_t frame_number;
+    
+    if (hal5_usb_device_get_synch_frame_ex(
+            TRX_WINDEX_AS_ENDPOINT_NUMBER(trx),
+            TRX_WINDEX_AS_ENDPOINT_DIR_IN(trx),
+            &frame_number))
+    {
+        setup_transaction_reply_in(trx, &frame_number, 2);
+    }
+    else
+    {
+        setup_transaction_stall_in(trx);
+    }
 } 
 
 void hal5_usb_device_setup_transaction_completed_ep0(

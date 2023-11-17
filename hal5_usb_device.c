@@ -34,11 +34,30 @@ static hal5_usb_device_state_t usb_device_state;
 
 void hal5_usb_device_set_address(uint8_t address)
 {
+    // device address can be zero or non-zero
+    // if it is zero, and state is default, it is not an error
+    //  device stays in default state
+    // if it is zero, and state is address,
+    //  device should go to default state
+    // if it is non-zero, it should go to address state
+    //  even if it is already in address state
+    //  and use the new address
+    //
+    assert ((usb_device_state == usb_device_state_default) ||
+            (usb_device_state == usb_device_state_address));
+
     usb_device_address = address;
 
     USB_DRD_FS->DADDR = 0x80 | usb_device_address;
-
-    usb_device_state = usb_device_state_address;
+    
+    if (address != 0)
+    {
+        usb_device_state = usb_device_state_address;
+    }
+    else
+    {
+        usb_device_state = usb_device_state_default;
+    }
 }
 
 void hal5_usb_device_set_configuration(uint8_t configuration_value)

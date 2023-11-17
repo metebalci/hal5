@@ -259,11 +259,28 @@ static void device_set_address(
 {
     standard_request = standard_request_device_set_address;
 
+    assert (trx->device_request->wValue <= 127);
+    assert (trx->device_request->wIndex == 0);
+    assert (trx->device_request->wLength == 0);
+
+    // it is possible that this request 
+    // comes again in address state
+    // or comes with address=0
+    // see hal5_usb_device_set_address method
+    // for more information
+
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_default: 
+        case usb_device_state_address: 
+            break;
+
+        default: assert (false);
+    }
+
     device_address = trx->device_request->wValue;
 
-#ifdef __HAL5_CONSOLE__
     printf("SET_ADDRESS: %u\n", device_address);
-#endif
 
     // IMPORTANT: address is actually set after IN zero
     // this is different than all other requests
@@ -284,9 +301,7 @@ static void device_get_descriptor(
         case 0x01:
             {
                 // device descriptor (device should have one, must)
-#ifdef __HAL5_CONSOLE__
                 printf("GET_DESCRIPTOR(device)\n");
-#endif            
                 hal5_usb_device_descriptor_t descriptor;
                 hal5_usb_device_get_device_descriptor_ex(&descriptor);
                 setup_transaction_reply_in(
@@ -304,11 +319,9 @@ static void device_get_descriptor(
                 // c - i1 - e1 - e2 - i2 - e3 
                 const uint32_t descriptor_index = 
                     trx->device_request->wValue & 0xFF;
-#ifdef __HAL5_CONSOLE__
                 printf("GET_DESCRIPTOR(configuration) %lu %u\n", 
                         descriptor_index, 
                         trx->device_request->wLength);
-#endif                
                 if (descriptor_index == 0)
                 {
                     if (trx->device_request->wLength == 
@@ -370,10 +383,8 @@ static void device_get_descriptor(
 
                 if (exists)
                 {
-#ifdef __HAL5_CONSOLE__
                     printf("GET_DESCRIPTOR(string) %lu 0x%04lX\n", 
                             descriptor_index, lang_id);
-#endif
                     setup_transaction_reply_in(
                             trx,
                             &descriptor,
@@ -389,9 +400,7 @@ static void device_get_descriptor(
         case 0x06:
             {
                 // device qualifier descriptor (for HS support)
-#ifdef __HAL5_CONSOLE__
                 printf("GET_DESCRIPTOR(device_qualifier)\n");
-#endif
                 // this is not an HS device
                 // so respond with RequestError=stall
                 setup_transaction_stall_in(trx);
@@ -451,9 +460,7 @@ static void device_set_configuration(
     const uint8_t configuration_value = 
         trx->device_request->wValue & 0xFF;
 
-#ifdef __HAL5_CONSOLE__
     printf("SET_CONFIGURATION: %u\n", configuration_value);
-#endif
 
     hal5_usb_device_set_configuration(configuration_value);
 
@@ -717,14 +724,12 @@ void hal5_usb_device_setup_transaction_completed_ep0(
     trx->device_request = 
         (hal5_usb_device_request_t*) trx->rx_data;
 
-#ifdef __HAL5_CONSOLE__
     printf("S 0x%02X 0x%02X 0x%04X 0x%04X 0x%04X\n", 
             trx->device_request->bmRequestType, 
             trx->device_request->bRequest,
             trx->device_request->wValue, 
             trx->device_request->wIndex, 
             trx->device_request->wLength);
-#endif
 
     // when a SETUP transaction arrives
     // processing re-starts, no previous state affects this
@@ -814,11 +819,9 @@ void hal5_usb_device_setup_transaction_completed_ep0(
     // or I have forgotten to set standard_request in individual functions
     if (standard_request == standard_request_null) 
     {
-#ifdef __HAL5_CONSOLE__
         printf("unknown standard request: bmRequestType: 0x%02X, bRequest: 0x%02X\n", 
                 trx->device_request->bmRequestType,
                 trx->device_request->bRequest);
-#endif        
         assert (false);
     }
 }

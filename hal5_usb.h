@@ -25,8 +25,6 @@
 
 #include <stm32h5xx.h>
 
-#define __HAL5_DEBUG_USB__
-
 #define MCU_USB_STRING_DESCRIPTOR_MAX_UTF16_LENGTH 64
 
 // usb channel/endpoint registers

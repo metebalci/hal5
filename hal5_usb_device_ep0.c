@@ -125,6 +125,13 @@ static void setup_transaction_reply_in_with_zero(
     setup_transaction_finished(trx);
 }
 
+// USB 2.0 9.2.7 Request Error
+// The device deals with the Request Error by returning
+// a STALL PID in response to the next Data stage transaction
+// or in the Status stage of the message.
+// It is preferred that the STALL PID be returned at the next
+// Data stage transaction, as this avoids unnecessary bus activity.
+
 // stall IN as RequestError
 static void setup_transaction_stall_in(
         hal5_usb_transaction_t *trx)
@@ -495,7 +502,6 @@ static void interface_get_status(
     standard_request = standard_request_interface_get_status;
 
     assert (trx->device_request->wValue == 0);
-    //assert (trx->device_request->wIndex == 0);
     assert (trx->device_request->wLength == 2);
 
     switch (hal5_usb_device_get_state())

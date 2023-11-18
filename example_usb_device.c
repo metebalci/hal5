@@ -257,6 +257,15 @@ bool hal5_usb_device_set_configuration_ex(
     return true;
 }
 
+// return current alternate setting
+bool hal5_usb_device_get_interface_ex(
+        uint8_t interface,
+        uint8_t* alternate_setting)
+{
+    return false;
+}
+
+// set current alternate setting
 bool hal5_usb_device_set_interface_ex(
         uint8_t interface,
         uint8_t alternate_setting)

@@ -570,7 +570,36 @@ static void interface_get_interface(
 {
     standard_request = standard_request_interface_get_interface;
 
-    setup_transaction_stall_in(trx);
+    assert (trx->device_request->wValue == 0);
+    assert ((trx->device_request->wIndex & 0xFF00) == 0);
+    assert (trx->device_request->wLength == 1);
+
+    switch (hal5_usb_device_get_state())
+    {
+        case usb_device_state_configured: 
+            break;
+
+        case usb_device_state_address: 
+            setup_transaction_stall_in(trx);
+            return;
+
+        default: assert (false);
+    }
+
+    uint8_t alternate_setting;
+
+    bool success = hal5_usb_device_get_interface_ex(
+            TRX_WINDEX_AS_INTERFACE_NUMBER(trx),
+            &alternate_setting);
+
+    if (success)
+    {
+        setup_transaction_reply_in(trx, &alternate_setting, 1);
+    }
+    else
+    {
+        setup_transaction_stall_in(trx);
+    }
 }
 
 static void interface_set_interface(

@@ -49,7 +49,11 @@ hal5_usb_device_state_t hal5_usb_device_get_state();
 // these are called from endpoint 0 implementation
 // do not call these if you do not know what you are doing
 void hal5_usb_device_set_address(uint8_t device_address);
-bool hal5_usb_device_set_configuration(uint8_t configuration_value);
+
+// get configuration value but according to state rules
+uint8_t hal5_usb_device_get_configuration_value();
+// set configuration value but also change state if needed
+bool hal5_usb_device_set_configuration_value(uint8_t configuration_value);
 
 // endpoint 0 - enumeration support
 // these are implemented by hal5_usb_device_ep0.c

@@ -440,21 +440,18 @@ static void device_get_configuration(
     assert (trx->device_request->wIndex == 0);
     assert (trx->device_request->wLength == 1);
 
-    uint8_t configuration_value = 0;
-
     switch (hal5_usb_device_get_state())
     {
         case usb_device_state_configured:
-            configuration_value = 
-                hal5_usb_device_get_current_configuration_value_ex();
             break;
 
         case usb_device_state_address:
-            configuration_value = 0;
             break;
 
         default: assert (false);
     }
+
+    uint8_t configuration_value = hal5_usb_device_get_configuration_value();
 
     setup_transaction_reply_in(trx, &configuration_value, 1);
 }
@@ -486,7 +483,7 @@ static void device_set_configuration(
 
     printf("SET_CONFIGURATION: %u\n", configuration_value);
 
-    if (hal5_usb_device_set_configuration(configuration_value))
+    if (hal5_usb_device_set_configuration_value(configuration_value))
     {
         setup_transaction_reply_in_with_zero(trx);
     }

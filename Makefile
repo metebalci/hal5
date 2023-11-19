@@ -1,4 +1,3 @@
-#
 DEVICE		= stm32h5
 BOARD		= nucleo_h563zi
 APP_OBJS	= main.o syscalls.o 

@@ -26,8 +26,7 @@
 
 #include <stm32h5xx.h>
 
-#include "hal5_usb.h"
-#include "hal5_usb_device.h"
+#include "hal5.h"
 
 static uint8_t usb_device_address;
 static hal5_usb_device_state_t usb_device_state;
@@ -233,7 +232,7 @@ static void hal5_usb_device_reset(void)
     // and it is assigned to DADDR in bus reset
     usb_device_address = 0;
 
-    printf("USBRST....\n");
+    CONSOLE("USBRST....\n");
 
     // reset internal state 
     // the following registers are not reset so manually do that
@@ -281,28 +280,28 @@ static void hal5_usb_device_reset(void)
 static void hal5_usb_device_transaction_error(
         hal5_usb_transaction_t* trx)
 {
-    printf("usb_transaction_error\n");
+    CONSOLE("usb_transaction_error\n");
     const uint32_t statrx = (trx->chep & USB_CHEP_RX_STRX_Msk) >> USB_CHEP_RX_STRX_Pos;
     const uint32_t stattx = (trx->chep & USB_CHEP_TX_STTX_Msk) >> USB_CHEP_TX_STTX_Pos;
 
     const char* msg[] = {"DISABLED", "STALL", "NAK", "VALID"};
 
-    printf("--- USB Communication Error ---\n");
+    CONSOLE("--- USB Communication Error ---\n");
 
-    printf("RX %s\n", msg[statrx]);
-    printf("TX %s\n", msg[stattx]);
+    CONSOLE("RX %s\n", msg[statrx]);
+    CONSOLE("TX %s\n", msg[stattx]);
 
     assert (false);
 }
 
 static void hal5_usb_device_bus_error(void)
 {
-    printf("usb_bus_error\n");
+    CONSOLE("usb_bus_error\n");
 }
 
 static void hal5_usb_device_bus_reset(void)
 {
-    //printf("usb_bus_reset\n");  
+    CONSOLE("usb_bus_reset\n");  
 
     // USB BUS RESET does not happen only once before setup
     // it can happen anytime and it does not reset the state
@@ -316,17 +315,17 @@ static void hal5_usb_device_bus_reset(void)
 
 static void hal5_usb_device_suspend(void)
 {
-    printf("usb_suspend\n");
+    CONSOLE("usb_suspend\n");
 }
 
 static void hal5_usb_device_wakeup(void)
 {
-    printf("usb_wakeup\n");
+    CONSOLE("usb_wakeup\n");
 }
 
 static void hal5_usb_device_buffer_overflow(void)
 {
-    printf("usb_buffer_overflow\n");
+    CONSOLE("usb_buffer_overflow\n");
 }
 
 void USB_DRD_FS_IRQHandler(void)
@@ -358,9 +357,6 @@ void USB_DRD_FS_IRQHandler(void)
         trx.idn    = (istr & USB_ISTR_IDN_Msk) & 0xF;
         trx.chep   = USB_CHEP[trx.idn];
         trx.ea     = (trx.chep & 0xF);
-
-        //printf("CTR (%lu, 0x%08lX)\n",  current_idn, istr);
-        //printf("CHEP[%lu] 0x%08lX\n",   current_idn, istr);
 
         const bool vtrx = (trx.chep & USB_CHEP_VTRX_Msk);
         const bool vttx = (trx.chep & USB_CHEP_VTTX_Msk);
@@ -446,7 +442,7 @@ void USB_DRD_FS_IRQHandler(void)
     } 
     else 
     {
-        printf("UNKNOWN INTERRUPT: ISTR: 0x%08lX\n", istr);
+        CONSOLE("UNKNOWN INTERRUPT: ISTR: 0x%08lX\n", istr);
         assert (false);
     }
 }
@@ -454,13 +450,11 @@ void USB_DRD_FS_IRQHandler(void)
 void hal5_usb_device_configure()
 {
     hal5_usb_device_initialize_endpoint_buffers();
-
-    printf("USB configured.\n");
 }
 
 void hal5_usb_device_connect(void) 
 {
-    printf("USB connect: pulling-up D+ ...\n");
+    CONSOLE("USB connect: pulling-up D+ ...\n");
 
     hal5_usb_device_reset();
 
@@ -480,5 +474,5 @@ void hal5_usb_device_disconnect(void)
     // hold reset
     CLEAR_BIT(USB_DRD_FS->CNTR, USB_CNTR_USBRST);
 
-    printf("USB disconnect: pull-up removed from D+\n");
+    CONSOLE("USB disconnect: pull-up removed from D+\n");
 }

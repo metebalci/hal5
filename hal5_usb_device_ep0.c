@@ -24,8 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "hal5_usb.h"
-#include "hal5_usb_device.h"
+#include "hal5.h"
 
 #define TRX_WINDEX_AS_ENDPOINT_NUMBER(trx) \
     ((uint8_t) (trx->device_request->wIndex & 0x000F))
@@ -235,16 +234,23 @@ static void device_set_feature(
     assert (trx->device_request->wIndex == 0);
     assert (trx->device_request->wLength == 0);
 
+    const uint16_t feature_selector = 
+        trx->device_request->wValue;
+
     switch (hal5_usb_device_get_state())
     {
         case usb_device_state_configured: 
         case usb_device_state_address: 
             break;
+
+        // 9.4.9 Set Feature
+        // test mode can also be set in default state
+        case usb_device_state_default:
+            assert (feature_selector == FEATURE_SELECTOR_TEST_MODE);
+            break;
+
         default: assert (false);
     }
-
-    const uint16_t feature_selector = 
-        trx->device_request->wValue;
 
     bool success = false;
 
@@ -285,12 +291,12 @@ static void device_set_address(
         default: assert (false);
     }
 
-    device_address = trx->device_request->wValue;
 
-    printf("SET_ADDRESS: %u\n", device_address);
-
-    // IMPORTANT: address is actually set after IN zero
+    // IMPORTANT: address is actually set in Status stage
     // this is different than all other requests
+    // device_address here is a temporary storage
+    
+    device_address = trx->device_request->wValue;
 
     setup_transaction_reply_in_with_zero(trx);
 }
@@ -308,7 +314,6 @@ static void device_get_descriptor(
         case 0x01:
             {
                 // device descriptor (device should have one, must)
-                printf("GET_DESCRIPTOR(device)\n");
                 hal5_usb_device_descriptor_t descriptor;
                 hal5_usb_device_get_device_descriptor_ex(&descriptor);
                 setup_transaction_reply_in(
@@ -326,9 +331,6 @@ static void device_get_descriptor(
                 // c - i1 - e1 - e2 - i2 - e3 
                 const uint32_t descriptor_index = 
                     trx->device_request->wValue & 0xFF;
-                printf("GET_DESCRIPTOR(configuration) %lu %u\n", 
-                        descriptor_index, 
-                        trx->device_request->wLength);
                 if (descriptor_index == 0)
                 {
                     if (trx->device_request->wLength == 
@@ -390,8 +392,6 @@ static void device_get_descriptor(
 
                 if (exists)
                 {
-                    printf("GET_DESCRIPTOR(string) %lu 0x%04lX\n", 
-                            descriptor_index, lang_id);
                     setup_transaction_reply_in(
                             trx,
                             &descriptor,
@@ -407,7 +407,6 @@ static void device_get_descriptor(
         case 0x06:
             {
                 // device qualifier descriptor (for HS support)
-                printf("GET_DESCRIPTOR(device_qualifier)\n");
                 // this is not an HS device
                 // so respond with RequestError=stall
                 setup_transaction_stall_in(trx);
@@ -481,16 +480,10 @@ static void device_set_configuration(
     const uint8_t configuration_value = 
         trx->device_request->wValue & 0xFF;
 
-    printf("SET_CONFIGURATION: %u\n", configuration_value);
+    bool success = hal5_usb_device_set_configuration_value(configuration_value);
 
-    if (hal5_usb_device_set_configuration_value(configuration_value))
-    {
-        setup_transaction_reply_in_with_zero(trx);
-    }
-    else
-    {
-        setup_transaction_stall_in(trx);
-    }
+    if (success) setup_transaction_reply_in_with_zero(trx);
+    else setup_transaction_stall_in(trx);
 }
 
 static void interface_get_status(
@@ -782,17 +775,13 @@ static void endpoint_synch_frame(
 
     uint16_t frame_number;
     
-    if (hal5_usb_device_get_synch_frame_ex(
+    bool success = hal5_usb_device_get_synch_frame_ex(
             TRX_WINDEX_AS_ENDPOINT_NUMBER(trx),
             TRX_WINDEX_AS_ENDPOINT_DIR_IN(trx),
-            &frame_number))
-    {
-        setup_transaction_reply_in(trx, &frame_number, 2);
-    }
-    else
-    {
-        setup_transaction_stall_in(trx);
-    }
+            &frame_number);
+
+    if (success) setup_transaction_reply_in(trx, &frame_number, 2);
+    else setup_transaction_stall_in(trx);
 } 
 
 void hal5_usb_device_setup_transaction_completed_ep0(
@@ -804,7 +793,7 @@ void hal5_usb_device_setup_transaction_completed_ep0(
     trx->device_request = 
         (hal5_usb_device_request_t*) trx->rx_data;
 
-    printf("S 0x%02X 0x%02X 0x%04X 0x%04X 0x%04X\n", 
+    CONSOLE("S 0x%02X 0x%02X 0x%04X 0x%04X 0x%04X\n", 
             trx->device_request->bmRequestType, 
             trx->device_request->bRequest,
             trx->device_request->wValue, 
@@ -899,7 +888,7 @@ void hal5_usb_device_setup_transaction_completed_ep0(
     // or I have forgotten to set standard_request in individual functions
     if (standard_request == standard_request_null) 
     {
-        printf("unknown standard request: bmRequestType: 0x%02X, bRequest: 0x%02X\n", 
+        CONSOLE("unknown standard request: bmRequestType: 0x%02X, bRequest: 0x%02X\n", 
                 trx->device_request->bmRequestType,
                 trx->device_request->bRequest);
         assert (false);

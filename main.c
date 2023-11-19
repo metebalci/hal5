@@ -40,85 +40,96 @@ void button_callback(void)
 
 void boot(void)
 {
-  // configure console as early as possible
-  // console uses LPUART1 running with LSI
-  hal5_console_configure(921600);
+    // configure console as early as possible
+    // console uses LPUART1 running with LSI
+    hal5_console_configure(921600);
 
-  // clear screen and set fg color to red
-  // boot messages are shown in red
-  hal5_console_clearscreen();
-  hal5_console_boot_colors();
+    // clear screen and set fg color to red
+    // boot messages are shown in red
+    hal5_console_clearscreen();
+    hal5_console_boot_colors();
 
-  printf("Booting...");
+    hal5_console_dump_info();
 
-  hal5_icache_enable();
-  hal5_flash_enable_prefetch();
+    CONSOLE("Booting...\n");
 
-  // configure bsp first
-  // required for showing progress (on leds)
-  // might be required if external clocks are used
-  bsp_configure(button_callback);
+    hal5_icache_enable();
+    CONSOLE("ICACHE enabled.\n");
 
-  hal5_watchdog_configure(5000);
+    hal5_flash_enable_prefetch();
+    CONSOLE("Prefetch enabled.\n");
 
-  hal5_rcc_initialize_pll1(
-    pll_src_hsi,
-    4, 60, 2, 4, 2,
-    true, false, false);
-  hal5_change_sys_ck(sys_ck_src_pll1);
+    // configure bsp first
+    // required for showing progress (on leds)
+    // might be required if external clocks are used
+    bsp_configure(button_callback);
 
-  hal5_rcc_dump_clock_info();
+    hal5_watchdog_configure(5000);
 
-  hal5_rcc_enable_mco2(mco2sel_sysclk, 0);
+    hal5_rcc_initialize_pll1(
+            pll_src_hsi,
+            4, 60, 2, 4, 2,
+            true, false, false);
+    CONSOLE("PLL1 initialized.\n");
 
-  hal5_systick_configure();
+    hal5_change_sys_ck(sys_ck_src_pll1);
+    CONSOLE("SYSCLK is now PLL1_P.\n");
 
-  hal5_rng_enable();
+    hal5_rcc_dump_clock_info();
 
-  // initialize random from an RNG seed
-  const uint32_t seed = hal5_rng_random();
-  srand(seed);
+    hal5_rcc_enable_mco2(mco2sel_sysclk, 0);
+    CONSOLE("MCO2 shows SYSCLK.\n");
 
-  hal5_usb_configure();
-  hal5_usb_device_configure();
+    hal5_systick_configure();
+    CONSOLE("SYSTICK configured.\n");
 
-  hal5_console_dump_info();
-  bsp_boot_completed();
-  printf("Boot completed. [%08lX]\n", seed);
+    hal5_rng_enable();
+    // initialize random from an RNG seed
+    const uint32_t seed = hal5_rng_random();
+    srand(seed);
+    CONSOLE("RNG enabled. [%08lX]\n", seed);
 
-  hal5_console_normal_colors();
+    hal5_usb_configure();
+    CONSOLE("USB configured.\n");
+    hal5_usb_device_configure();
+    CONSOLE("USB device configured.\n");
+
+    bsp_boot_completed();
+    CONSOLE("Boot completed.\n");
+
+    hal5_console_normal_colors();
 }
 
 int main(void) 
 {
-  boot();
+    boot();
 
-  const bool flower = true;
+    const bool flower = true;
 
-  uint32_t last = hal5_slow_ticks;
+    uint32_t last = hal5_slow_ticks;
 
-  while (1) {
+    while (1) {
 
-    hal5_watchdog_heartbeat();
+        hal5_watchdog_heartbeat();
 
-    const uint32_t now = hal5_slow_ticks;
-    if (now > last) {
-      last = now;
-      bsp_heartbeat();
-      //mcu_console_heartbeat();
+        const uint32_t now = hal5_slow_ticks;
+        if (now > last) {
+            last = now;
+            bsp_heartbeat();
+            //mcu_console_heartbeat();
+        }
+
+        char ch;
+        if (hal5_console_read(&ch)) {
+            if (ch == 'c') hal5_usb_device_connect();
+            else if (ch == 'd') hal5_usb_device_disconnect();
+        }
+
     }
 
-    char ch;
-    if (hal5_console_read(&ch)) {
-      if (ch == 'c') hal5_usb_device_connect();
-      else if (ch == 'd') hal5_usb_device_disconnect();
-    }
-    
-  }
+    // you shall not return
+    assert (false);
 
-  // you shall not return
-  assert (false);
-
-  return 0;
+    return 0;
 
 }

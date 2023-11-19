@@ -403,11 +403,11 @@ void hal5_rcc_dump_clock_info(void)
   const uint32_t K = 1000;
   const uint32_t M = 1000000;
 
-  printf("CSI     : %3lu MHz\n", hal5_rcc_get_csi_ck() / M);
-  printf("LSI     : %3lu KHz\n", hal5_rcc_get_lsi_ck() / K);
-  printf("HSI     : %3lu MHz\n", hal5_rcc_get_hsi_ck() / M);
-  printf("PLL1_P  : %3lu MHz\n", hal5_rcc_get_pll1_p_ck() / M);
-  printf("SYSCLK  : %3lu MHz\n", hal5_rcc_get_sys_ck() / M);
-  printf("HCLK    : %3lu MHz\n", hal5_rcc_get_hclk() / M);
-  printf("FCLK    : %3lu MHz\n", hal5_rcc_get_fclk() / M);
+  CONSOLE("CSI     : %3lu MHz\n", hal5_rcc_get_csi_ck() / M);
+  CONSOLE("LSI     : %3lu KHz\n", hal5_rcc_get_lsi_ck() / K);
+  CONSOLE("HSI     : %3lu MHz\n", hal5_rcc_get_hsi_ck() / M);
+  CONSOLE("PLL1_P  : %3lu MHz\n", hal5_rcc_get_pll1_p_ck() / M);
+  CONSOLE("SYSCLK  : %3lu MHz\n", hal5_rcc_get_sys_ck() / M);
+  CONSOLE("HCLK    : %3lu MHz\n", hal5_rcc_get_hclk() / M);
+  CONSOLE("FCLK    : %3lu MHz\n", hal5_rcc_get_fclk() / M);
 }

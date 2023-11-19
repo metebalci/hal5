@@ -62,7 +62,6 @@ void hal5_usb_configure()
 
     // enable PWR for USB
     hal5_pwr_enable_usb33();
-    printf("USB3V3 is valid.\n");
 
     // enable USB register macrocell clock
     hal5_rcc_enable_usb();
@@ -80,8 +79,6 @@ void hal5_usb_configure()
     // usb is powered and clocked
     // reset is not released
     // pull-up is not enabled
-
-    printf("USB configured.\n");
 }
 
 
@@ -143,8 +140,6 @@ void hal5_usb_prepare_endpoint(
             ((chep & USB_CHEP_TX_STTX_Msk) >> USB_CHEP_TX_STTX_Pos),
             tx_status);
 
-    //printf("chep: 0x%08lX\n", chep);
-
     // when device address is assigned
     // CHEP[EA] should contain device address as well
     const uint32_t newchep = (
@@ -154,9 +149,6 @@ void hal5_usb_prepare_endpoint(
             (0b01 << USB_CHEP_UTYPE_Pos) | 
             (sttx << USB_CHEP_TX_STTX_Pos) | 
             trx->ea);
-
-    //printf("chep: 0x%08lX\n", newchep);
-    //printf("chep: 0x%08lX\n", apply_chep(chep, newchep));
 
     USB_CHEP[trx->ea] = newchep;
 }

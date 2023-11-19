@@ -25,6 +25,8 @@
 
 #include <stm32h5xx.h>
 
+#define CONSOLE(f_, ...) printf((f_), ##__VA_ARGS__)
+
 #include "hal5_types.h"
 
 #include "hal5_usb.h"
@@ -156,8 +158,6 @@ void hal5_i2c_write(
 
 void hal5_lpuart_configure(
         const uint32_t baud);
-
-void hal5_lpuart_dump_info();
 
 void hal5_lpuart_write(
         const char ch);

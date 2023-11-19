@@ -38,7 +38,7 @@ void __assert_func(const char *file,
         const char *func,
         const char *failedexpr) 
 {
-    printf("ASSERT %s:%d %s() %s\n", file, line, func, failedexpr);
+    CONSOLE("ASSERT %s:%d %s() %s\n", file, line, func, failedexpr);
 
     hal5_freeze();
 }

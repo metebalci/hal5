@@ -101,9 +101,3 @@ bool hal5_lpuart_read(
         return false;
     }
 }
-
-void hal5_lpuart_dump_info()
-{
-    printf("LPUART1 on PB6 TX, PB7 RX.\n");
-    printf("%lu baud, 8N1.\n", lpuart_baud);
-}

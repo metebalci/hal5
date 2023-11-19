@@ -227,6 +227,8 @@ bool hal5_usb_device_is_device_remote_wakeup_set_ex()
 
 bool hal5_usb_device_set_test_mode_ex()
 {
+    // HS device should support test mode
+    // FS does not need to ?
     return false;
 }
 

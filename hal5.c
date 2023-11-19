@@ -26,21 +26,21 @@
 
 void hal5_dump_fault_info(void)
 {
-    printf("Fault Status:");
-    if (SCB->CFSR & SCB_CFSR_DIVBYZERO_Msk) printf(" DIVBYZERO");
-    if (SCB->CFSR & SCB_CFSR_UNALIGNED_Msk) printf(" UNALIGNED");
-    if (SCB->CFSR & SCB_CFSR_STKOF_Msk) printf(" STKOF");
-    if (SCB->CFSR & SCB_CFSR_NOCP_Msk) printf(" NOCP");
-    if (SCB->CFSR & SCB_CFSR_INVPC_Msk) printf(" INVPC");
-    if (SCB->CFSR & SCB_CFSR_INVSTATE_Msk) printf(" INVSTATE");
-    if (SCB->CFSR & SCB_CFSR_UNDEFINSTR_Msk) printf(" UNDEFINSTR");
-    printf("\n");
+    CONSOLE("Fault Status:");
+    if (SCB->CFSR & SCB_CFSR_DIVBYZERO_Msk) CONSOLE(" DIVBYZERO");
+    if (SCB->CFSR & SCB_CFSR_UNALIGNED_Msk) CONSOLE(" UNALIGNED");
+    if (SCB->CFSR & SCB_CFSR_STKOF_Msk) CONSOLE(" STKOF");
+    if (SCB->CFSR & SCB_CFSR_NOCP_Msk) CONSOLE(" NOCP");
+    if (SCB->CFSR & SCB_CFSR_INVPC_Msk) CONSOLE(" INVPC");
+    if (SCB->CFSR & SCB_CFSR_INVSTATE_Msk) CONSOLE(" INVSTATE");
+    if (SCB->CFSR & SCB_CFSR_UNDEFINSTR_Msk) CONSOLE(" UNDEFINSTR");
+    CONSOLE("\n");
 }
 
 void hal5_freeze() 
 {
-    printf("Program will freeze now keeping iWatchDog alive.\n");
-    printf("You have to manually reset.\n");
+    CONSOLE("Program will freeze now keeping iWatchDog alive.\n");
+    CONSOLE("You have to manually reset.\n");
 
     while (1) hal5_watchdog_heartbeat();
 }

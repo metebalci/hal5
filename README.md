@@ -1,17 +1,17 @@
 
 # HAL5
 
-*This is a work-in-progress and major changes can happen.*
+*This is still a work-in-progress.*
 
-HAL5 is a high-level system API for STM32H5 Cortex-M33 MCUs, particularly for STM32H563/573. It does not depend on STM32 HAL, but only CMSIS. It is not a HAL per se since the current aim is to support only STM32H5 series, however the functionality is like HAL and even higher level than a HAL. Then, why is the name HAL ? Actually it is not related to HAL (Hardware Abstraction Layer) but to remember [HAL 9000](https://en.wikipedia.org/wiki/HAL_9000).
+HAL5 is a high-level system API for STM32H5 Cortex-M33 MCUs, particularly for STM32H563/573. It does not depend on STM32 HAL, but only CMSIS. It is not a HAL per se since the current aim is to support only STM32H5 series, however the functionality is like HAL and even higher level than a HAL.
 
-The main purpose at the moment is neither to support all features of the MCU nor to have production quality, but to provide an easy and a robust API to learn, study and experiment with STM32H5 MCUs. HAL5 is a result of my frustration with existing APIs and the way I prefer to write the code (on Linux terminal with vim using Makefile and using C not C++).
+The main purpose at the moment is neither to support all features of the MCU nor to have production quality, but to provide an easy and a robust API to learn, study and experiment with STM32H5 MCUs. HAL5 is a result of my frustration with existing APIs and the way I prefer to study the MCUs.
 
 The only two dependencies of the project are [CMSIS (Arm) 5.9.0](https://github.com/ARM-software/CMSIS_5) and [STM32CubeH5 CMSIS Device MCU Component (ST) 1.1.0](https://github.com/STMicroelectronics/cmsis_device_h5). STM32CubeH5 is used for TypeDefs, Register, Msk and Pos macro definitions and macro functions like CLEAR_BIT, SET_BIT, MODIFY_REG.
 
 The source code in this repository can be divided into four groups:
 
-- hal5 source files: provides hal5 system API and implementation, all files starting with `hal5_`. These are built into a static library named `hal5.a`. There are multiple header files but only `hal5.h` needs to be included by the users.
+- hal5 source files: provides hal5 system API and implementation, all files starting with `hal5_`. These are built into a static library named `hal5.a`. There are multiple header files but only `hal5.h` needs to be included by the users. So, if you want to use it, you need `hal5.h` and `hal5.a`.
 
 - startup file and link script: `startup_stm32h563.c` and `startup.ld`.
 

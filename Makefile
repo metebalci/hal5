@@ -1,3 +1,43 @@
+#
+# SPDX-FileCopyrightText: 2023 Mete Balci
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (c) 2023 Mete Balci
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#
+# SPDX-FileCopyrightText: 2023 Mete Balci
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (c) 2023 Mete Balci
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 DEVICE		= stm32h5
 BOARD		= nucleo_h563zi
 APP_OBJS	= main.o syscalls.o 
@@ -94,3 +134,5 @@ cmsis_device_h5:
 
 fixlicenses:
 	reuse annotate --style=c --template=hal5 --merge-copyrights --license=Apache-2.0 --copyright="Mete Balci" --year 2023 *.c *.h *.ld
+	reuse annotate --style=python --template=hash --merge-copyrights --license=Apache-2.0 --copyright="Mete Balci" --year 2023 *.py
+	reuse annotate --style=c --template=hash --merge-copyrights --license=Apache-2.0 --copyright="Mete Balci" --year 2023 Makefile

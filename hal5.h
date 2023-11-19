@@ -42,6 +42,8 @@ void hal5_debug_pulse(void);
 void hal5_freeze(void);
 void hal5_change_sys_ck(
         const hal5_rcc_sys_ck_src_t src);
+void hal5_change_sys_ck_to_pll1_p(
+        const uint32_t target_ck);
 
 // CACHE
 
@@ -216,13 +218,41 @@ void hal5_rcc_enable_usb(void);
 void hal5_rcc_change_sys_ck_src(
         const hal5_rcc_sys_ck_src_t src);
 
-void hal5_rcc_initialize_pll1(
+// PLL output is: 
+// pll_ck = (src_ck / M) * N / [PQR]
+//
+// ref_ck (src_ck / M) has to be between 1-16MHz
+// (ref_ck * N) has to be between 192-836MHz or 150-420MHz
+// 
+// returns true if a config can be found
+//
+// returns real M,N,PQR factors not register values
+// these values can be used with initialize method
+// 
+// if target_[pqr]_ck is 0, corresponding div[pqr] is not calculated
+// in this case, divpqr pointer can be send as NULL
+// in this case, if not NULL, divpqr values are set to zero
+//
+bool hal5_rcc_search_pll_config_integer_mode(
+        const uint32_t src_ck, 
+        const uint32_t target_p_ck,
+        const uint32_t target_q_ck,
+        const uint32_t target_r_ck,
+        bool only_even_p,
+        uint32_t* divm,
+        uint32_t* muln,
+        uint32_t* divp,
+        uint32_t* divq,
+        uint32_t* divr);
+
+// divm = 0 means prescaler is disabled
+void hal5_rcc_initialize_pll1_integer_mode(
         const hal5_rcc_pll_src_t src, 
         const uint32_t divm, 
-        uint32_t muln,
-        uint32_t divp, 
-        uint32_t divq, 
-        uint32_t divr, 
+        const uint32_t muln,
+        const uint32_t divp, 
+        const uint32_t divq, 
+        const uint32_t divr, 
         const bool pen, 
         const bool qen, 
         const bool ren);

@@ -25,15 +25,15 @@ The source code in this repository can be divided into four groups:
 
 - API limits the ambiguity and error-prone operations i.e. GPIO configuration can only be made for valid configurations. This is mostly accomplished by using enums for the input and output arguments of public functions, no bit fields or masks are used.
 
-- These enums are directly related to hardware but the values of enums are not used directly in hardware operations, thus enums has (on purpose) no values assigned in typedefs.
-
 - No error is returned from most of the API functions. This is because most, if not all, of these functions are related to hardware and there is no temporary errors. A call resulting an error will always result an error with the same parameters, so it should not be handled in the software. Instead, assertions are often used to see where the issue is. For example, if something is supplied for PLL configuration that is impossible to satisfy in the hardware, no error is returned but an assertion is failed within the relevant function.
 
 - A simple VT100-like console (on LPUART1) is provided for information and debug purposes. `printf` writes to this console (LPUART1), and assert works with it as well. It can be used with 921600 baud and the default configuration is 8N1. `printf` synchronously writes to UART FIFO, and stdout buffering is disabled, so it is not the best performance but nothing is lost. For the terminal emulation on PC, `minicom` can be used with `addcarreturn` option.
 
 - API provides functions returning the actual frequency of various clocks in the clock tree e.g. `hal5_rcc_pll1_p_ck()`. These values are not cached (and there is no clock update function) but queried from the hardware when requested.
 
-- The system core clock (sys_ck) can be changed with `hal5_change_sys_ck` which automatically adjust flash latency and voltage scaling.
+- The system core clock (`sys_ck`) can be changed with `hal5_change_sys_ck` which automatically adjust flash latency and voltage scaling.
+
+- The system core clock (`sys_ck`) can be changed to `pll1_p` with `hal5_change_sys_ck_to_pll1_p` with a single target frequency parameter. This will search for a PLL configuration, initialize it, and change `sys_ck` to `pll1_p` (and automatically adjusts flash latency and voltage scaling).
 
 - CMSIS SysTick_Config is not used but a System tick (actually two ticks) is implemented, one in millisecond, the other is in second resolution.
 

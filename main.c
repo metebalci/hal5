@@ -23,9 +23,7 @@
 #include <stdlib.h>
 
 #include "bsp.h"
-
 #include "hal5.h"
-#include "hal5_usb_device.h"
 
 void HardFault_Handler(void)
 {
@@ -38,8 +36,7 @@ void button_callback(void)
 {
 }
 
-void boot(void)
-{
+void boot(void){
     // configure console as early as possible
     // console uses LPUART1 running with LSI
     hal5_console_configure(921600);
@@ -66,14 +63,7 @@ void boot(void)
 
     hal5_watchdog_configure(5000);
 
-    hal5_rcc_initialize_pll1(
-            pll_src_hsi,
-            4, 60, 2, 4, 2,
-            true, false, false);
-    CONSOLE("PLL1 initialized.\n");
-
-    hal5_change_sys_ck(sys_ck_src_pll1);
-    CONSOLE("SYSCLK is now PLL1_P.\n");
+    hal5_change_sys_ck_to_pll1_p(240000000);
 
     hal5_rcc_dump_clock_info();
 

@@ -102,7 +102,7 @@ Control read requests:
 - `Get Interface`
 - `Synch Frame`
 
-are implemented.
+are implemented with complete parameter and state checks according to USB 2.0 spec.
 
 ### USB Device
 

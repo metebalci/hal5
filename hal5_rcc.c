@@ -24,7 +24,9 @@
 
 #include "hal5.h"
 
-hal5_rcc_reset_status_t hal5_rcc_get_reset_status(void)
+static hal5_rcc_reset_status_t reset_reason;
+
+static hal5_rcc_reset_status_t get_reset_status(void)
 {
     const uint32_t rsr = RCC->RSR;
 
@@ -43,8 +45,19 @@ hal5_rcc_reset_status_t hal5_rcc_get_reset_status(void)
     } else {
         return reset_status_unknown;
     }
+}
 
+void hal5_rcc_initialize(void)
+{
+    reset_reason = get_reset_status();
+    // if not reset, existing flags are not reset 
+    // so actual reason cannot be read
     SET_BIT(RCC->RSR, RCC_RSR_RMVF);
+}
+
+hal5_rcc_reset_status_t hal5_rcc_get_reset_status(void)
+{
+    return reset_reason;
 }
 
 void hal5_rcc_change_hsidiv(hal5_rcc_hsidiv_t hsidiv)

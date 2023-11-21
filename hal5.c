@@ -24,17 +24,73 @@
 
 #include "hal5.h"
 
-void hal5_dump_fault_info(void)
+static const char* CFSR_BIT_DESCRIPTIONS[] = {
+    // MMFSR, MemManage Fault Status Register
+    "IACCVIOL (Instruction Access Violation)",
+    "DACCVIOL (Data Access Violation)",
+    "RESERVED",
+    "MUNSTKERR (MemManage fault on unstacking for a return from exception)",
+    "MSTKERR (MemManage fault on stacking for exception entry)",
+    "MLSPERR (MemManage fault occurred during floating-point lazy state preservation)",
+    "RESERVED",
+    "MMARVALID (MMFAR holds a valid fault address)",
+
+    // BFSR, BusFault Status Register
+    "IBUSERR (Instruction bus error)",
+    "PRECISERR (Precise data bus error)",
+    "RESERVED",
+    "UNSTKERR (BusFault on unstacking for a return from exception)",
+    "STKERR (BusFault on stacking for exception entry)",
+    "LSPERR (BusFault occurred during floating-point lazy state preservation)",
+    "RESERVED",
+    "BFARVALID (BFAR holds a valid fault address)",
+
+    // UFSR, Usage Fault Register
+    "UNDEFINSTR (Undefined instruction)",
+    "INVSTATE (Invalid state)",
+    "INVPC (Invalid PC)",
+    "NOCP (No coprocessor)",
+    "STKOF (Stack overflow)",
+    "RESERVED",
+    "RESERVED",
+    "RESERVED",
+    "UNALIGNED (Unaligned access)",
+    "DIVBYZERO (Divide by zero)",
+    "RESERVED",
+    "RESERVED",
+    "RESERVED",
+    "RESERVED",
+    "RESERVED",
+    "RESERVED",
+};
+
+void hal5_dump_cfsr_info(void)
 {
-    CONSOLE("Fault Status:");
-    if (SCB->CFSR & SCB_CFSR_DIVBYZERO_Msk) CONSOLE(" DIVBYZERO");
-    if (SCB->CFSR & SCB_CFSR_UNALIGNED_Msk) CONSOLE(" UNALIGNED");
-    if (SCB->CFSR & SCB_CFSR_STKOF_Msk) CONSOLE(" STKOF");
-    if (SCB->CFSR & SCB_CFSR_NOCP_Msk) CONSOLE(" NOCP");
-    if (SCB->CFSR & SCB_CFSR_INVPC_Msk) CONSOLE(" INVPC");
-    if (SCB->CFSR & SCB_CFSR_INVSTATE_Msk) CONSOLE(" INVSTATE");
-    if (SCB->CFSR & SCB_CFSR_UNDEFINSTR_Msk) CONSOLE(" UNDEFINSTR");
-    CONSOLE("\n");
+    const uint32_t cfsr = SCB->CFSR;
+
+    CONSOLE("CFSR, Configurable Fault Status Register [0x%08lX]:\n", cfsr);
+
+    for (uint32_t pos = 0; pos < 32; pos++)
+    {
+        if (cfsr & (1 << pos)) 
+        {
+            const char* desc = CFSR_BIT_DESCRIPTIONS[pos];
+            CONSOLE("  %s\n", desc);
+
+            // MMARVALID
+            if (pos == SCB_CFSR_MMARVALID_Pos)
+            {
+                // MMFAR
+                CONSOLE("    MMFAR=0x%08lX\n", SCB->MMFAR);
+            }
+            // BFARVALID
+            else if (pos == SCB_CFSR_BFARVALID_Pos)
+            {
+                // BFAR
+                CONSOLE("    BFAR=0x%08lX\n", SCB->BFAR);
+            }
+        }
+    }
 }
 
 void hal5_freeze() 

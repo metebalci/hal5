@@ -79,6 +79,8 @@ void hal5_usb_configure()
     // usb is powered and clocked
     // reset is not released
     // pull-up is not enabled
+    
+    CONSOLE("USB configured.\n");
 }
 
 
@@ -95,7 +97,6 @@ static uint32_t hal5_usb_find_chep_status_toggle(
             // reset first (use as it is), inverse second (use inverse)
             current = (current & 0b10) | (~current & 0b01);
             break;
-            break;
         case ep_status_nak:
             // set first (use inverse), reset second (use as it is)
             current = (~current & 0b10) | (current & 0b01);
@@ -108,15 +109,30 @@ static uint32_t hal5_usb_find_chep_status_toggle(
     return (current & 0b11);
 }
 
+// this is only to be called 
+void hal5_usb_prepare_ep0_for_setup()
+{
+    const uint32_t newchep = (
+            0xFFFF0000 | 
+            (0b11 << USB_CHEP_RX_STRX_Pos) | 
+            // 0b01=control
+            (0b01 << USB_CHEP_UTYPE_Pos) | 
+            (0b00 << USB_CHEP_TX_STTX_Pos) | 
+            0);
+
+    USB_CHEP[0] = newchep;
+}
+
 void hal5_usb_prepare_endpoint(
         hal5_usb_transaction_t* trx,
         usb_ep_status_t rx_status,
         usb_ep_status_t tx_status)
 {
-    // only rx or tx can be enabled
-    // endpoint is single direction only
-    assert ((rx_status == ep_status_disabled) || 
-            (tx_status == ep_status_disabled));
+    // copy data to endpoint buffer if it will transmit
+    if (tx_status == ep_status_valid)
+    {
+        hal5_usb_copy_to_endpoint(trx);
+    }
 
     // writing invariant values 1 and 0 to vtrx, vttx and dtogrx, dtogtx 
     // writing invariant values 00 to stattx
@@ -150,7 +166,7 @@ void hal5_usb_prepare_endpoint(
             (sttx << USB_CHEP_TX_STTX_Pos) | 
             trx->ea);
 
-    USB_CHEP[trx->ea] = newchep;
+    USB_CHEP[trx->idn] = newchep;
 }
 
 // ATTENTION
@@ -193,7 +209,7 @@ void hal5_usb_copy_from_endpoint(hal5_usb_transaction_t* trx)
     const uint32_t* buffer32 = 
         (uint32_t*) (USB_SRAM + (USB_BD[trx->idn].RXBD & 0xFFFF));
 
-    const uint32_t rx_count = (USB_BD[trx->idn].RXBD & 0x0CFF0000) >> 16;
+    const uint32_t rx_count = (USB_BD[trx->idn].RXBD & 0x03FF0000) >> 16;
 
     const uint32_t rx_count_rounded_up = rx_count + (rx_count & 0x3);
 
@@ -241,49 +257,48 @@ static uint32_t hal5_usb_txbd_pack(
     return tx_addr_offset;
 }
 
-// initialize endpoint buffer descriptors
+// initialize buffer descriptors
 // dir_in is true if dir=IN, false if dir=OUT
-// size is endpoint buffer size (maxPacketSize in descriptors)
-// size for unused endpoints should be 0 !
-void hal5_usb_initialize_buffer_descriptors(
-        bool dir_in[], 
-        uint16_t size[])
+// size is buffer size (maxPacketSize in descriptors)
+// size for unused buffers should be 0 !
+void hal5_usb_initialize_buffer_descriptor_table(
+        uint16_t* size)
 {
     // starts from 64
-    // first 64 bytes are buffer descriptors
+    // first 64 bytes is buffer descriptor table
     uint32_t next_addr = 64;
-    
-    // setup other endpoint buffer descriptors
-    for (uint8_t ea = 0; ea < 16; ea++)
+
+    for (uint8_t n = 0; n < 8; n++)
     {
-        // ensure alignment
-        // important, copy to and from functions above depends on this
+        // IMPORTANT: ensure alignment
+        // copy to and from functions above depends on this
         // so the actual buffer length might be larger than requested
-        // to align it to word boundary
+        // to align it to word boundary 
+        // ie 3 bytes requested, it will be 4
         next_addr = next_addr + (next_addr & 0x3);
         // USB SRAM is 2K
         assert (next_addr < 2048);
 
-        // endpoint 0 special treatment
-        // both IN and OUT is set and using the same buffer
-        // since IN and OUT is not used at the same time
-        if (ea == 0)
+        if (size[n] > 0) 
         {
-            USB_BD[ea].RXBD = hal5_usb_rxbd_pack(size[ea], next_addr);
-            USB_BD[ea].TXBD = hal5_usb_txbd_pack(next_addr);
+            // both IN and OUT is set and using the same buffer area
+            // since IN and OUT is not used at the same time
+            USB_BD[n].RXBD = hal5_usb_rxbd_pack(size[n], next_addr);
+            USB_BD[n].TXBD = hal5_usb_txbd_pack(next_addr);
         }
         else
         {
-            if (dir_in[ea])
-            {
-                USB_BD[ea].RXBD = hal5_usb_rxbd_pack(size[ea], next_addr);
-            }
-            else
-            {
-                USB_BD[ea].TXBD = hal5_usb_txbd_pack(next_addr);
-            }
+            USB_BD[n].RXBD = 0;
+            USB_BD[n].TXBD = 0;
         }
 
-        next_addr += size[ea];
+        next_addr += size[n];
     }
+
+    for (uint8_t n = 0; n < 8; n++)
+    {
+        CONSOLE("USB_BD[%u] RXBD=0x%08lX TXBD=0x%08lX\n", 
+                n, USB_BD[n].RXBD, USB_BD[n].TXBD);
+    }
+
 }

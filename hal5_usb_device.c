@@ -28,11 +28,11 @@
 
 #include "hal5.h"
 
-static uint8_t usb_device_address;
 static hal5_usb_device_state_t usb_device_state;
 
 void hal5_usb_device_set_address(uint8_t address)
 {
+    assert (address <= 127);
     // device address can be zero or non-zero
     // if it is zero, and state is default, it is not an error
     //  device stays in default state
@@ -45,10 +45,8 @@ void hal5_usb_device_set_address(uint8_t address)
     assert ((usb_device_state == usb_device_state_default) ||
             (usb_device_state == usb_device_state_address));
 
-    usb_device_address = address;
+    USB_DRD_FS->DADDR = 0x80 | address;
 
-    USB_DRD_FS->DADDR = 0x80 | usb_device_address;
-    
     if (address != 0)
     {
         usb_device_state = usb_device_state_address;
@@ -136,20 +134,27 @@ hal5_usb_device_state_t hal5_usb_device_get_state()
     return usb_device_state;
 }
 
-// ea is argument here to have same structure as out_transaction_completed
-// but ea is ensured/asserted to be 0 in the interrupt handler
+// for setup transaction
+// trx.ea is ensured/asserted to be 0 in the interrupt handler
+// no need to check here again
 static void hal5_usb_device_setup_transaction_completed(
         hal5_usb_transaction_t* trx)
 {
-    hal5_usb_copy_from_endpoint(trx);
-    hal5_usb_device_setup_transaction_completed_ep0(trx);
+    if (trx->ea == 0)
+    {
+        hal5_usb_device_setup_transaction_completed_ep0(trx);
+    }
+    else
+    {
+        // this cannot happen
+        // setup transactions are already addressed to endpoint 0
+        assert (false);
+    }
 }
 
 static void hal5_usb_device_out_transaction_completed(
         hal5_usb_transaction_t* trx)
 {
-    hal5_usb_copy_from_endpoint(trx);
-
     if (trx->ea == 0)
     {
         hal5_usb_device_out_transaction_completed_ep0(trx);
@@ -173,13 +178,11 @@ static void hal5_usb_device_in_transaction_completed(
     }
 }
 
-void hal5_usb_device_initialize_endpoint_buffers()
+void hal5_usb_device_configure_buffer_descriptor_table()
 { 
     // first, find buffer sizes and directions of endpoints
     // max packet size of an endpoint is encoded as wMaxPacketSize
-    uint16_t size[16] = {0};
-    // endpoint directions, if true it is IN, otherwise OUT
-    bool dir_in[16] = {false};
+    uint16_t size[8] = {0};
 
     // iterate over descriptors
     // find wMaxPacketSize of each endpoint
@@ -212,14 +215,27 @@ void hal5_usb_device_initialize_endpoint_buffers()
 
                 const uint8_t ea = (ed.bEndpointAddress & 0x0F);
 
-                dir_in[ea] = (ed.bEndpointAddress & 0x80);
+                // number of endpoints supported is 8
+                // although any endpoint address can be used
+                //  as long as the total number of endpoints is
+                //  less than 8
+                // it is simpler to use only 0 to 7 inclusive
+                // so endpoint number and endpoint address is same
+                assert (ea < 8);
+
+                // if direction is needed, this can be used
+                // if true, it is IN
+                //dir_in[ea] = (ed.bEndpointAddress & 0x80);
+                
+                // ensure to not overwrite
+                assert (size[ea] == 0);
                 size[ea] = ed.wMaxPacketSize;
 
             }
         }
     }
 
-    hal5_usb_initialize_buffer_descriptors(dir_in, size);
+    hal5_usb_initialize_buffer_descriptor_table(size);
 
 }
 
@@ -229,10 +245,10 @@ static void hal5_usb_device_reset(void)
     
     // device address is set to 0 here
     // it is sent by host with Set Address request
-    // and it is assigned to DADDR in bus reset
-    usb_device_address = 0;
+    // and it is set to DADDR in hal5_usb_device_set_address function above
+    usb_device_state = usb_device_state_default;
 
-    CONSOLE("USBRST....\n");
+    CONSOLE("USBRST...\n");
 
     // reset internal state 
     // the following registers are not reset so manually do that
@@ -304,13 +320,19 @@ static void hal5_usb_device_bus_reset(void)
     CONSOLE("usb_bus_reset\n");  
 
     // USB BUS RESET does not happen only once before setup
-    // it can happen anytime and it does not reset the state
-    // so do not reset the internal state with bus reset
-    
-    usb_device_state = usb_device_state_default;
-    
-    // enable control endpoint 0
-    //hal5_usb_prepare_endpoint();
+    // it also happens before setting the address during setup
+
+    switch (usb_device_state)
+    {
+        case usb_device_state_default: 
+            hal5_usb_prepare_ep0_for_setup();
+            break;
+
+        case usb_device_state_address:
+        case usb_device_state_configured:
+            hal5_usb_device_disconnect();
+            break;
+    }
 }
 
 static void hal5_usb_device_suspend(void)
@@ -349,7 +371,7 @@ void USB_DRD_FS_IRQHandler(void)
         // transfer completed (ACKed, NAKed or STALLed)
         // this interrupt is called after USB transaction is finished
         
-        hal5_usb_transaction_t trx;
+        hal5_usb_transaction_t trx = {0};
 
         // ISTR CTR bit is read-only
         // no need to clear any bit in ISTR
@@ -361,15 +383,19 @@ void USB_DRD_FS_IRQHandler(void)
         const bool vtrx = (trx.chep & USB_CHEP_VTRX_Msk);
         const bool vttx = (trx.chep & USB_CHEP_VTTX_Msk);
 
+        //CONSOLE("USB_ISTR_CTR %u (%u)\n", trx.idn, trx.ea);
+
         if (vtrx) 
         {
             // SETUP or OUT transaction is completed, from host to device
             // this happens when SETUP or OUT is ACKed by the device
+            
+            // copy the incoming data from USB SRAM to SRAM
+            hal5_usb_copy_from_endpoint(&trx);
+            // is it SETUP or OUT ?
             const bool setup = (trx.chep & USB_CHEP_SETUP_Msk);
             if (setup) 
             {
-                assert (trx.ea == 0);
-                // SETUP transaction
                 hal5_usb_device_setup_transaction_completed(&trx);
             } 
             else
@@ -381,7 +407,6 @@ void USB_DRD_FS_IRQHandler(void)
         {
             // IN transaction is completed, from device to host
             // this happens when IN is ACKed by host
-            //
             hal5_usb_device_in_transaction_completed(&trx);
         }
         else
@@ -449,7 +474,9 @@ void USB_DRD_FS_IRQHandler(void)
 
 void hal5_usb_device_configure()
 {
-    hal5_usb_device_initialize_endpoint_buffers();
+    hal5_usb_device_configure_buffer_descriptor_table();
+
+    CONSOLE("USB device configured.\n");
 }
 
 void hal5_usb_device_connect(void) 

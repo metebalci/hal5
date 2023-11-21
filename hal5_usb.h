@@ -172,9 +172,9 @@ typedef struct
 
 void hal5_usb_configure();
 
-void hal5_usb_initialize_buffer_descriptors(
-        bool dir_in[], 
-        uint16_t size[]);
+void hal5_usb_initialize_buffer_descriptor_table(uint16_t size[]);
+
+void hal5_usb_prepare_ep0_for_setup();
 
 void hal5_usb_prepare_endpoint(
         hal5_usb_transaction_t* trx,

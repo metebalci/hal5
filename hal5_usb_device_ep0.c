@@ -62,18 +62,26 @@ typedef enum
     standard_request_endpoint_synch_frame,
 } usb_standard_request_t;
 
-// used to temporarily store the standard request
-// stored at SETUP, NULLed at setup_transaction_finished
+// used for temporarily storing current standard request in processing
+// stored at SETUP, used in following IN and/or OUT transactions
 static usb_standard_request_t standard_request = standard_request_null;
 
-// SETUP TRANSACTION HELPERS
-
-static void setup_transaction_finished(
+// this is called when a standard request is finished
+// it can be any type of standard request
+// sometimes called after IN, sometimes OUT
+// basically it should prepare for new RX
+void standard_request_completed(
         hal5_usb_transaction_t *trx)
 {
-    device_address = 0;
     standard_request = standard_request_null;
+
+    hal5_usb_prepare_endpoint(
+            trx, 
+            ep_status_valid,
+            ep_status_disabled);
 }
+
+// SETUP TRANSACTION HELPERS
 
 // SETUP IN_DATA OUT_0 e.g. get_descriptor
 // this is used to send data for IN
@@ -82,28 +90,27 @@ static void setup_transaction_reply_in(
         const void* data, 
         const size_t len)
 {
+    assert (len <= 1024);
     memcpy(trx->tx_data, data, len);
     trx->tx_data_len = len;
 
     // IN = tx valid
     hal5_usb_prepare_endpoint(
-            0, 
+            trx, 
             ep_status_disabled,
             ep_status_valid);
 }
 
-// SETUP_IN_DATA OUT_0 e.g. get_descriptor
+// SETUPIN_DATA OUT_0 e.g. get_descriptor
 // this is used to acknowledge the OUT with zero data
 static void setup_transaction_ack_out_zero(
         hal5_usb_transaction_t *trx)
 {
     // OUT = rx valid
     hal5_usb_prepare_endpoint(
-            0,
+            trx,
             ep_status_valid,
             ep_status_disabled);
-
-    setup_transaction_finished(trx);
 }
 
 // SETUP IN_0 e.g. clear_feature
@@ -117,11 +124,9 @@ static void setup_transaction_reply_in_with_zero(
 
     // IN = tx valid
     hal5_usb_prepare_endpoint(
-            0, 
+            trx, 
             ep_status_disabled,
             ep_status_valid);
-
-    setup_transaction_finished(trx);
 }
 
 // USB 2.0 9.2.7 Request Error
@@ -131,30 +136,16 @@ static void setup_transaction_reply_in_with_zero(
 // It is preferred that the STALL PID be returned at the next
 // Data stage transaction, as this avoids unnecessary bus activity.
 
-// stall IN as RequestError
-static void setup_transaction_stall_in(
-        hal5_usb_transaction_t *trx)
-{
-    // IN = tx stall
-    hal5_usb_prepare_endpoint(
-            0, 
-            ep_status_disabled,
-            ep_status_stall);
-
-    setup_transaction_finished(trx);
-}
-
-// stall OUT as RequestError
-static void setup_transaction_stall_out(
+// RequestError is signalled with STALL
+// STALL any transaction (IN or OUT) 
+static void setup_transaction_stall(
         hal5_usb_transaction_t *trx)
 {
     // OUT = rx stall
     hal5_usb_prepare_endpoint(
-            0, 
-            ep_status_stall,
-            ep_status_disabled);
-
-    setup_transaction_finished(trx);
+            trx, 
+            ep_status_valid,
+            ep_status_stall);
 }
 
 // STANDARD REQUESTS
@@ -219,11 +210,11 @@ static void device_clear_feature(
     else if (feature_selector == FEATURE_SELECTOR_TEST_MODE)
     {
         // test mode cannot be cleared by Clear Feature
-        setup_transaction_stall_in(trx);
+        setup_transaction_stall(trx);
     }
 
     if (success) setup_transaction_reply_in_with_zero(trx);
-    else setup_transaction_stall_in(trx);
+    else setup_transaction_stall(trx);
 }
 
 static void device_set_feature(
@@ -264,7 +255,7 @@ static void device_set_feature(
     }
 
     if (success) setup_transaction_reply_in_with_zero(trx);
-    else setup_transaction_stall_in(trx);
+    else setup_transaction_stall(trx);
 }
 
 static void device_set_address(
@@ -314,62 +305,107 @@ static void device_get_descriptor(
         case 0x01:
             {
                 // device descriptor (device should have one, must)
-                hal5_usb_device_descriptor_t descriptor;
-                hal5_usb_device_get_device_descriptor_ex(&descriptor);
-                setup_transaction_reply_in(
-                        trx,
-                        &descriptor,
-                        sizeof(descriptor));
+                hal5_usb_device_descriptor_t dd;
+                hal5_usb_device_get_device_descriptor_ex(&dd);
+
+                assert (trx->device_request->wLength >= dd.bLength);
+                setup_transaction_reply_in( trx, &dd, dd.bLength);
             }
             break;
 
         case 0x02:
             {
                 // configuration descriptor (device should have at least one)
-                // including all interface and their endpoints
+                // according to USB 2.0 spec:
+                //   when the host requests the configuration descriptor
+                //   all related interface and 
+                //   endpoint descriptors are returned
                 // the order is if i1 includes e1,r2 and i2 includes e3:
                 // c - i1 - e1 - e2 - i2 - e3 
-                const uint32_t descriptor_index = 
+                // HOWEVER, host usually requests this in two requests
+                // one with wLength == configuration descriptor bLength
+                // and then
+                // one with wLength == configuration descriptor wTotalLength
+                const uint32_t configuration_descriptor_index = 
                     trx->device_request->wValue & 0xFF;
-                if (descriptor_index == 0)
+
+                hal5_usb_configuration_descriptor_t cd;
+                
+                const bool cd_exists = 
+                    hal5_usb_device_get_configuration_descriptor_ex(
+                        configuration_descriptor_index,
+                        &cd);
+
+                if (cd_exists)
                 {
-                    if (trx->device_request->wLength == 
-                            sizeof(hal5_usb_configuration_descriptor_t))
-                    {
-                        // only the configuration descriptor requested
-                        
-                        hal5_usb_configuration_descriptor_t descriptor;
-                        hal5_usb_device_get_configuration_descriptor_ex(
-                                descriptor_index,
-                                &descriptor);
+                    // 64 is MaxPacketSize0
+                    // for both USB 1.1 and USB 2.0
+                    // for endpoint 0
+                    uint8_t tmp[64];
+                    memcpy(tmp, &cd, cd.bLength);
+                    uint16_t len = cd.bLength;
 
+                    // there is actually no need for this if
+                    // it is only an optimization 
+                    //  because it usually (always?) happens like this
+                    if (trx->device_request->wLength == cd.bLength) 
+                    {
                         setup_transaction_reply_in(
                                 trx,
-                                &descriptor,
-                                sizeof(descriptor));
-                    } 
-                    else if (trx->device_request->wLength >= 
-                            sizeof(hal5_usb_configuration_descriptor_t))
-                    {
-                        hal5_usb_configuration_descriptor_t descriptor;
-                        hal5_usb_device_get_configuration_descriptor_ex(
-                                descriptor_index,
-                                &descriptor);
-
-                        setup_transaction_reply_in(
-                                trx,
-                                &descriptor, 
-                                descriptor.wTotalLength);
-                    } 
+                                tmp,
+                                len);
+                    }
                     else
                     {
-                        // this should not happen
-                        setup_transaction_stall_in(trx);
+                        // if larger than configuration descriptor length
+                        // it should be all, not sure if/when this does not happen
+                        assert (trx->device_request->wLength >= cd.wTotalLength);
+
+                        for (uint32_t j = 0; j < cd.bNumInterfaces; j++)
+                        {
+                            hal5_usb_interface_descriptor_t id;
+                            const bool id_exists = 
+                                hal5_usb_device_get_interface_descriptor_ex(
+                                    configuration_descriptor_index, 
+                                    j, 
+                                    &id);
+                            // it should exists
+                            // otherwise there is an error in device implementation
+                            assert (id_exists == true);
+                            memcpy(tmp+len, &id, id.bLength);
+                            len += id.bLength; 
+
+                            for (uint32_t k = 0; k < id.bNumEndPoints; k++)
+                            {
+                                hal5_usb_endpoint_descriptor_t ed;
+                                const bool ed_exists = 
+                                    hal5_usb_device_get_endpoint_descriptor_ex(
+                                        configuration_descriptor_index, 
+                                        j,
+                                        k, 
+                                        &ed);
+                                // it should exists
+                                // otherwise there is an error in device implementation
+                                assert (ed_exists == true);
+                                memcpy(tmp+len, &ed, ed.bLength);
+                                len += ed.bLength; 
+                            }
+                        }
+
+                        // ensure reported wTotalLength by the device is equal to actual
+                        // if this fails, there is an error in device descriptors
+                        assert (cd.wTotalLength == len);
+
+                        setup_transaction_reply_in(
+                                trx,
+                                tmp,
+                                len);
                     }
                 }
                 else
                 {
-                    setup_transaction_stall_in(trx);
+                    // no such descriptor
+                    setup_transaction_stall(trx);
                 }
             }
             break;
@@ -377,29 +413,31 @@ static void device_get_descriptor(
         case 0x03:
             {
                 // string descriptor (optional)
-                const uint32_t descriptor_index = 
+                const uint32_t string_descriptor_index = 
                     trx->device_request->wValue & 0xFF;
 
                 const uint32_t lang_id = 
                     trx->device_request->wIndex;
 
-                hal5_usb_string_descriptor_t descriptor;
+                hal5_usb_string_descriptor_t sd;
 
-                bool exists = hal5_usb_device_get_string_descriptor_ex(
-                        descriptor_index,
+                const bool sd_exists = hal5_usb_device_get_string_descriptor_ex(
+                        string_descriptor_index,
                         lang_id,
-                        &descriptor);
+                        &sd);
 
-                if (exists)
+                if (sd_exists)
                 {
+                    assert (trx->device_request->wLength >= sd.bLength);
+
                     setup_transaction_reply_in(
                             trx,
-                            &descriptor,
-                            descriptor.bLength);
+                            &sd,
+                            sd.bLength);
                 }
                 else
                 {
-                    setup_transaction_stall_in(trx);
+                    setup_transaction_stall(trx);
                 }
             }
             break;
@@ -407,15 +445,36 @@ static void device_get_descriptor(
         case 0x06:
             {
                 // device qualifier descriptor (for HS support)
-                // this is not an HS device
-                // so respond with RequestError=stall
-                setup_transaction_stall_in(trx);
+                // according to USB 2.0 spec:
+                //   if a full-speed only device (with version=0200)
+                //   receives this request, 
+                //   it must respond with a request error.
+                // RequestError=stall
+                
+                // this might be requested multiple times
+                // so a stall should be returned each time
+                hal5_usb_device_qualifier_descriptor_t dqd;
+                if (hal5_usb_device_get_device_qualifier_descriptor_ex(&dqd))
+                {
+                    // this is implemented for completeness
+                    // however FS device should not return this
+                    // when HS devices are supported, the assert can be removed
+                    assert (false);
+                    setup_transaction_reply_in(
+                            trx,
+                            &dqd,
+                            dqd.bLength);
+                }
+                else
+                {
+                    setup_transaction_stall(trx);
+                }
             }
             break;
 
         default: 
             {
-                setup_transaction_stall_in(trx);
+                setup_transaction_stall(trx);
             }
             break;
     }
@@ -427,7 +486,7 @@ static void device_set_descriptor(
 {
     standard_request = standard_request_device_set_descriptor;
 
-    setup_transaction_stall_out(trx);
+    setup_transaction_stall(trx);
 }
 
 static void device_get_configuration(
@@ -483,7 +542,7 @@ static void device_set_configuration(
     bool success = hal5_usb_device_set_configuration_value(configuration_value);
 
     if (success) setup_transaction_reply_in_with_zero(trx);
-    else setup_transaction_stall_in(trx);
+    else setup_transaction_stall(trx);
 }
 
 static void interface_get_status(
@@ -502,7 +561,7 @@ static void interface_get_status(
         case usb_device_state_address: 
             if (TRX_WINDEX_AS_INTERFACE_NUMBER(trx) != 0)
             {
-                setup_transaction_stall_in(trx);
+                setup_transaction_stall(trx);
                 return;
             }
             break;
@@ -534,7 +593,7 @@ static void interface_clear_feature(
     }
 
     // there are no features for interface
-    setup_transaction_stall_in(trx);
+    setup_transaction_stall(trx);
 }
 
 static void interface_set_feature(
@@ -555,7 +614,7 @@ static void interface_set_feature(
     }
 
     // there are no features for interface
-    setup_transaction_stall_in(trx);
+    setup_transaction_stall(trx);
 }
 
 static void interface_get_interface(
@@ -573,7 +632,7 @@ static void interface_get_interface(
             break;
 
         case usb_device_state_address: 
-            setup_transaction_stall_in(trx);
+            setup_transaction_stall(trx);
             return;
 
         default: assert (false);
@@ -585,14 +644,8 @@ static void interface_get_interface(
             TRX_WINDEX_AS_INTERFACE_NUMBER(trx),
             &alternate_setting);
 
-    if (success)
-    {
-        setup_transaction_reply_in(trx, &alternate_setting, 1);
-    }
-    else
-    {
-        setup_transaction_stall_in(trx);
-    }
+    if (success) setup_transaction_reply_in(trx, &alternate_setting, 1);
+    else setup_transaction_stall(trx);
 }
 
 static void interface_set_interface(
@@ -612,7 +665,7 @@ static void interface_set_interface(
             break;
 
         case usb_device_state_address:
-            setup_transaction_stall_in(trx);
+            setup_transaction_stall(trx);
             return;
 
         default: assert (false);
@@ -626,7 +679,7 @@ static void interface_set_interface(
             alternate_setting);
 
     if (success) setup_transaction_reply_in_with_zero(trx);
-    else setup_transaction_stall_in(trx);
+    else setup_transaction_stall(trx);
 }
 
 static void endpoint_get_status(
@@ -645,7 +698,7 @@ static void endpoint_get_status(
         case usb_device_state_address: 
             if (TRX_WINDEX_AS_ENDPOINT_NUMBER(trx) != 0)
             {
-                setup_transaction_stall_in(trx);
+                setup_transaction_stall(trx);
                 return;
             }
             break;
@@ -669,7 +722,7 @@ static void endpoint_get_status(
     }
     else
     {
-        setup_transaction_stall_in(trx);
+        setup_transaction_stall(trx);
     }
 }
 
@@ -688,7 +741,7 @@ static void endpoint_clear_feature(
         case usb_device_state_address:
             if (TRX_WINDEX_AS_ENDPOINT_NUMBER(trx) != 0) 
             {
-                setup_transaction_stall_in(trx);
+                setup_transaction_stall(trx);
                 return;
             }
             break;
@@ -710,7 +763,7 @@ static void endpoint_clear_feature(
     }
 
     if (success) setup_transaction_reply_in_with_zero(trx);
-    else setup_transaction_stall_in(trx);
+    else setup_transaction_stall(trx);
 
 }
 
@@ -729,7 +782,7 @@ static void endpoint_set_feature(
         case usb_device_state_address:
             if (TRX_WINDEX_AS_ENDPOINT_NUMBER(trx) != 0) 
             {
-                setup_transaction_stall_in(trx);
+                setup_transaction_stall(trx);
                 return;
             }
             break;
@@ -750,7 +803,7 @@ static void endpoint_set_feature(
     }
 
     if (success) setup_transaction_reply_in_with_zero(trx);
-    else setup_transaction_stall_in(trx);
+    else setup_transaction_stall(trx);
 }
 
 static void endpoint_synch_frame(
@@ -767,7 +820,7 @@ static void endpoint_synch_frame(
             break;
 
         case usb_device_state_address: 
-            setup_transaction_stall_in(trx);
+            setup_transaction_stall(trx);
             return;
 
         default: assert (false);
@@ -781,7 +834,7 @@ static void endpoint_synch_frame(
             &frame_number);
 
     if (success) setup_transaction_reply_in(trx, &frame_number, 2);
-    else setup_transaction_stall_in(trx);
+    else setup_transaction_stall(trx);
 } 
 
 void hal5_usb_device_setup_transaction_completed_ep0(
@@ -822,6 +875,7 @@ void hal5_usb_device_setup_transaction_completed_ep0(
             } 
             break;
 
+        // recipient = DEVICE
         // data transfer direction = DEVICE TO HOST
         case 0x80:
             {
@@ -847,7 +901,7 @@ void hal5_usb_device_setup_transaction_completed_ep0(
             } 
             break;
 
-
+        // recipient = INTERFACE
         // data transfer direction = DEVICE TO HOST
         case 0x81:
             {
@@ -871,6 +925,7 @@ void hal5_usb_device_setup_transaction_completed_ep0(
             } 
             break;
 
+        // recipient = ENDPOINT
         // data transfer direction = DEVICE TO HOST
         case 0x82:
             {
@@ -886,7 +941,7 @@ void hal5_usb_device_setup_transaction_completed_ep0(
 
     // either it is not catched by any case above
     // or I have forgotten to set standard_request in individual functions
-    if (standard_request == standard_request_null) 
+    if (standard_request == standard_request_null)
     {
         CONSOLE("unknown standard request: bmRequestType: 0x%02X, bRequest: 0x%02X\n", 
                 trx->device_request->bmRequestType,
@@ -900,6 +955,8 @@ void hal5_usb_device_out_transaction_completed_ep0(
 {
     assert (trx->ea == 0);
 
+    CONSOLE("O\n");
+
     switch (standard_request)
     {
         // first SETUP transaction should complete 
@@ -908,7 +965,7 @@ void hal5_usb_device_out_transaction_completed_ep0(
             break;
 
         case standard_request_device_get_status:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_device_clear_feature:
@@ -930,7 +987,7 @@ void hal5_usb_device_out_transaction_completed_ep0(
             break;
 
         case standard_request_device_get_descriptor:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_device_set_descriptor:
@@ -940,7 +997,7 @@ void hal5_usb_device_out_transaction_completed_ep0(
             break;
 
         case standard_request_device_get_configuration:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_device_set_configuration:
@@ -950,7 +1007,7 @@ void hal5_usb_device_out_transaction_completed_ep0(
             break;
 
         case standard_request_interface_get_status:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_interface_clear_feature:
@@ -966,7 +1023,7 @@ void hal5_usb_device_out_transaction_completed_ep0(
             break;
 
         case standard_request_interface_get_interface:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_interface_set_interface:
@@ -976,7 +1033,7 @@ void hal5_usb_device_out_transaction_completed_ep0(
             break;
 
         case standard_request_endpoint_get_status:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_endpoint_clear_feature:
@@ -992,7 +1049,7 @@ void hal5_usb_device_out_transaction_completed_ep0(
             break;
 
         case standard_request_endpoint_synch_frame:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
     }
 }
@@ -1001,6 +1058,8 @@ void hal5_usb_device_in_transaction_completed_ep0(
         hal5_usb_transaction_t *trx)
 {
     assert (trx->ea == 0);
+
+    CONSOLE("I\n");
 
     switch (standard_request)
     {
@@ -1014,11 +1073,11 @@ void hal5_usb_device_in_transaction_completed_ep0(
             break;
 
         case standard_request_device_clear_feature:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_device_set_feature:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_device_set_address:
@@ -1028,8 +1087,10 @@ void hal5_usb_device_in_transaction_completed_ep0(
             //  after confirming Set Address with IN len=0
             // this is different than all other standard requests
             // that takes effect immediately
+            assert (device_address != 0);
             hal5_usb_device_set_address(device_address);
-            setup_transaction_finished(trx);
+            device_address = 0;
+            standard_request_completed(trx);
             break;
 
         case standard_request_device_get_descriptor:
@@ -1037,7 +1098,7 @@ void hal5_usb_device_in_transaction_completed_ep0(
             break;
 
         case standard_request_device_set_descriptor:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_device_get_configuration:
@@ -1045,7 +1106,7 @@ void hal5_usb_device_in_transaction_completed_ep0(
             break;
 
         case standard_request_device_set_configuration:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_interface_get_status:
@@ -1053,11 +1114,11 @@ void hal5_usb_device_in_transaction_completed_ep0(
             break;
 
         case standard_request_interface_clear_feature:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_interface_set_feature:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_interface_get_interface:
@@ -1065,7 +1126,7 @@ void hal5_usb_device_in_transaction_completed_ep0(
             break;
 
         case standard_request_interface_set_interface:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_endpoint_get_status:
@@ -1073,11 +1134,11 @@ void hal5_usb_device_in_transaction_completed_ep0(
             break;
 
         case standard_request_endpoint_clear_feature:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_endpoint_set_feature:
-            setup_transaction_finished(trx);
+            standard_request_completed(trx);
             break;
 
         case standard_request_endpoint_synch_frame:

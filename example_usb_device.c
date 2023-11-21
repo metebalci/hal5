@@ -30,7 +30,10 @@ static hal5_usb_device_descriptor_t dd =
     0x00,       // device class
     0x00,       // device sub class
     0x00,       // device protocol
-    64,         // max packet size for zero endpoint, 8, 16, 32 or 64 bytes
+    64,         // max packet size for zero endpoint
+                // for USB 2.0 HS device, it must be 64 bytes
+                // for USB 1.1 it says 8, 16, 32 or 64 bytes
+                // 64 bytes is a safe choice
     0x1209,     // pid.codes VID
     0x0001,     // pid.codes test PID
     0x0100,     // device version, bcd format, assigned by the developer
@@ -40,19 +43,6 @@ static hal5_usb_device_descriptor_t dd =
     1           // number of configurations
 };
 
-static hal5_usb_device_qualifier_descriptor_t dqd = 
-{
-    10,         // size of this descriptor, always 10
-    0x06,       // type=Device Qualifier Descriptor=0x06
-    0x0200,     // USB spec version 2.0
-    0x00,       // device class code
-    0x00,       // device subclass code
-    0x00,       // protocol code
-    0,          // maximum packet size for other speed
-    0,          // number of other-speed configurations
-    0           // reserved, must be 0
-};
-
 static hal5_usb_configuration_descriptor_t c1d = 
 {
     9,          // size of this descriptor, always 9
@@ -60,7 +50,8 @@ static hal5_usb_configuration_descriptor_t c1d =
     25,         // 2 bytes total length of configuration+interface+endpoint descriptors
                 // this value is 9+9+7=25 for one descriptor each
     1,          // number of interfaces
-    0,          // argument used with SetConfiguration to select this configuration
+    1,          // argument used with SetConfiguration to select this configuration
+                // this should be >0
     4,          // index of string descriptor
     0xC0,       // attributes, D6 is self powered
     0           // maximum power, bus powered
@@ -70,12 +61,12 @@ static hal5_usb_interface_descriptor_t c1i1d =
 {
     9,      // size of this descriptor, always 9
     0x04,   // type=Interface Descriptor=0x04
-    1,      // interface number
+    0,      // interface number, starts from 0
     0,      // argument used to select alternative setting
     1,      // number of endpoints excluding the control endpoint 0
-    0,      // class code (assigned by usb.org)
-    0,      // subclass code (assigned by usb.org)
-    0,      // protocol code (assigned by usb.org)
+    0xFF,   // class code (assigned by usb.org)
+    0xFF,   // subclass code (assigned by usb.org)
+    0xFF,   // protocol code (assigned by usb.org)
     5       // index of string descriptor
 };
 
@@ -130,6 +121,12 @@ void hal5_usb_device_get_device_descriptor_ex(
         void* descriptor) 
 {
     memcpy(descriptor, &dd, sizeof(dd));
+}
+ 
+bool hal5_usb_device_get_device_qualifier_descriptor_ex(
+        void* descriptor) 
+{
+    return false;
 }
 
 bool hal5_usb_device_get_configuration_descriptor_ex(

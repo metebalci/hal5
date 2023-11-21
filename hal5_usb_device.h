@@ -32,12 +32,9 @@ extern "C" {
 
 typedef enum 
 {
-    usb_device_state_attached,
-    usb_device_state_powered,
     usb_device_state_default,
     usb_device_state_address,
     usb_device_state_configured,
-    usb_device_state_suspended
 } hal5_usb_device_state_t;
 
 void hal5_usb_device_configure(void);
@@ -71,6 +68,10 @@ void hal5_usb_device_in_transaction_completed_ep0(
 // see hal5_usb_device_example.c as an example
 
 void hal5_usb_device_get_device_descriptor_ex(
+        void* descriptor) __WEAK;
+
+// for an FS device, simply return false
+bool hal5_usb_device_get_device_qualifier_descriptor_ex(
         void* descriptor) __WEAK;
 
 bool hal5_usb_device_get_configuration_descriptor_ex(

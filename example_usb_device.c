@@ -47,9 +47,9 @@ static hal5_usb_configuration_descriptor_t c1d =
 {
     9,          // size of this descriptor, always 9
     0x02,       // type=Configuration Descriptor=0x02
-    25,         // 2 bytes total length of configuration+interface+endpoint descriptors
-                // this value is 9+9+7=25 for one descriptor each
-    1,          // number of interfaces
+    48,         // 2 bytes total length of configuration+interface+endpoint descriptors
+                // this value is 9+9+7+9+7+7=48 for one descriptor each
+    2,          // number of interfaces
     1,          // argument used with SetConfiguration to select this configuration
                 // this should be >0
     4,          // index of string descriptor
@@ -57,7 +57,7 @@ static hal5_usb_configuration_descriptor_t c1d =
     0           // maximum power, bus powered
 };
 
-static hal5_usb_interface_descriptor_t c1i1d = 
+static hal5_usb_interface_descriptor_t c1i0d = 
 {
     9,      // size of this descriptor, always 9
     0x04,   // type=Interface Descriptor=0x04
@@ -70,14 +70,53 @@ static hal5_usb_interface_descriptor_t c1i1d =
     5       // index of string descriptor
 };
 
-static hal5_usb_endpoint_descriptor_t c1i1e1d = 
+static hal5_usb_endpoint_descriptor_t c1i0e1d = 
 {
     7,      // size of this descriptor, always 7
     0x05,   // type=Endpoint Descriptor=0x05
-    1,      // endpoint address, includes direction for iso, bulk and interrupt
-    0,      // transfer type=control
+    0x01,   // endpoint address, includes direction for iso, bulk and interrupt
+    0x00,   // transfer type=control (0b00)
     64,     // 2 bytes maximum packet size
-    0       // interval fo polling endpoint data transfers in frame count units
+    0       // interval for polling endpoint data transfers in frame count units
+            // ignored for bulk and control endpoints
+            // iso endpoints has to set 1 here
+            // interrupt endpoints has to choose 1 to 255
+};
+
+static hal5_usb_interface_descriptor_t c1i1d = 
+{
+    9,      // size of this descriptor, always 9
+    0x04,   // type=Interface Descriptor=0x04
+    1,      // interface number, starts from 0
+    0,      // argument used to select alternative setting
+    2,      // number of endpoints excluding the control endpoint 0
+    0xFF,   // class code (assigned by usb.org)
+    0xFF,   // subclass code (assigned by usb.org)
+    0xFF,   // protocol code (assigned by usb.org)
+    6       // index of string descriptor
+};
+
+static hal5_usb_endpoint_descriptor_t c1i1e2d = 
+{
+    7,      // size of this descriptor, always 7
+    0x05,   // type=Endpoint Descriptor=0x05
+    0x82,   // endpoint address, includes direction for iso, bulk and interrupt
+    0x02,   // transfer type=bulk (0b10)
+    64,     // 2 bytes maximum packet size
+    0       // interval for polling endpoint data transfers in frame count units
+            // ignored for bulk and control endpoints
+            // iso endpoints has to set 1 here
+            // interrupt endpoints has to choose 1 to 255
+};
+
+static hal5_usb_endpoint_descriptor_t c1i1e3d = 
+{
+    7,      // size of this descriptor, always 7
+    0x05,   // type=Endpoint Descriptor=0x05
+    0x03,   // endpoint address, includes direction for iso, bulk and interrupt
+    0x02,   // transfer type=bulk (0b10)
+    64,     // 2 bytes maximum packet size
+    0       // interval for polling endpoint data transfers in frame count units
             // ignored for bulk and control endpoints
             // iso endpoints has to set 1 here
             // interrupt endpoints has to choose 1 to 255
@@ -111,9 +150,14 @@ static hal5_usb_string_descriptor_t sds[] =
         {'c', 0, 'o', 0, 'n', 0, 'f', 0}
     },
     {
-        2+10,
+        2+12,
         0x03,
-        {'i', 0, 'f', 0, 'a', 0, 'c', 0, 'e'}
+        {'i', 0, 'f', 0, 'a', 0, 'c', 0, 'e', 0, '1', 0}
+    },
+    {
+        2+12,
+        0x03,
+        {'i', 0, 'f', 0, 'a', 0, 'c', 0, 'e', 0, '2', 0}
     }
 };
 
@@ -133,7 +177,7 @@ bool hal5_usb_device_get_configuration_descriptor_ex(
         uint8_t configuration,
         void* descriptor)
 {
-    if (configuration > 0) return false;
+    if (configuration != 0) return false;
 
     memcpy(descriptor, &c1d, sizeof(c1d));
 
@@ -145,12 +189,21 @@ bool hal5_usb_device_get_interface_descriptor_ex(
         uint8_t interface,
         void* descriptor)
 {
-    if (configuration > 0) return false;
-    if (interface > 0) return false;
+    if (configuration != 0) return false;
 
-    memcpy(descriptor, &c1i1d, sizeof(c1i1d));
+    switch (interface)
+    {
+        case 0:
+            memcpy(descriptor, &c1i0d, sizeof(c1i0d));
+            return true;
 
-    return true;
+        case 1:
+            memcpy(descriptor, &c1i1d, sizeof(c1i1d));
+            return true;
+
+        default:
+            return false;
+    }
 }
 
 bool hal5_usb_device_get_endpoint_descriptor_ex(
@@ -159,13 +212,36 @@ bool hal5_usb_device_get_endpoint_descriptor_ex(
         uint8_t endpoint,
         void* descriptor)
 {
-    if (configuration > 0) return false;
-    if (interface > 0) return false;
-    if (endpoint > 0) return false;
+    if (configuration != 0) return false;
 
-    memcpy(descriptor, &c1i1e1d, sizeof(c1i1e1d));
+    switch (interface)
+    {
+        case 0:
+            switch (endpoint)
+            {
+                case 0:
+                    memcpy(descriptor, &c1i0e1d, sizeof(c1i0e1d));
+                    return true;
+                default:
+                    return false;
+            }
 
-    return true;
+        case 1:
+            switch (endpoint)
+            {
+                case 0:
+                    memcpy(descriptor, &c1i1e2d, sizeof(c1i1e2d));
+                    return true;
+                case 1:
+                    memcpy(descriptor, &c1i1e3d, sizeof(c1i1e3d));
+                    return true;
+                default:
+                    return false;
+            }
+
+        default:
+            return false;
+    }
 }
 
 bool hal5_usb_device_get_string_descriptor_ex(

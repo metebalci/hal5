@@ -27,17 +27,29 @@ The source code in this repository can be divided into four groups:
 
 - No error is returned from most of the API functions. This is because most, if not all, of these functions are related to hardware and there is no temporary errors. A call resulting an error will always result an error with the same parameters, so it should not be handled in the software. Instead, assertions are often used to see where the issue is. For example, if something is supplied for PLL configuration that is impossible to satisfy in the hardware, no error is returned but an assertion is failed within the relevant function.
 
-- A simple VT100-like console (on LPUART1) is provided for information and debug purposes. `printf` writes to this console (LPUART1), and assert works with it as well. It can be used with 921600 baud and the default configuration is 8N1. `printf` synchronously writes to UART FIFO, and stdout buffering is disabled, so it is not the best performance but nothing is lost. For the terminal emulation on PC, `minicom` can be used with `addcarreturn` option.
-
 - API provides functions returning the actual frequency of various clocks in the clock tree e.g. `hal5_rcc_pll1_p_ck()`. These values are not cached (and there is no clock update function) but queried from the hardware when requested.
-
-- The system core clock (`sys_ck`) can be changed with `hal5_change_sys_ck` which automatically adjust flash latency and voltage scaling.
-
-- The system core clock (`sys_ck`) can be changed to `pll1_p` with `hal5_change_sys_ck_to_pll1_p` with a single target frequency parameter. This will search for a PLL configuration, initialize it, and change `sys_ck` to `pll1_p` (and automatically adjusts flash latency and voltage scaling).
 
 - CMSIS SysTick_Config is not used but a System tick (actually two ticks) is implemented, one in millisecond, the other is in second resolution.
 
 - The startup code is C-based, not assembly.
+
+## Console
+
+- A simple VT100-like console (on LPUART1) is provided for information and debug purposes. `printf` writes to this console (LPUART1), and assert works with it as well. It can be used with 921600 baud and the default configuration is 8N1. For the terminal emulation on PC, `minicom` can be used with `addcarreturn` option.
+
+## Fault Reporting
+
+`hal5_dump_cfsr_info` function prints information about the fault to the console. This can be called in HardFault handler.
+
+The purpose of `bsp_fault` function is to visually indicate a fault (possibly HardFault) happened on the board. I use the red LED on the board for this purpose.
+
+The `HardFault_Handler` in `main.c` uses both functions. 
+
+## Ease of use 
+
+The system core clock (`sys_ck`) can be changed with `hal5_change_sys_ck` which automatically adjust flash latency and voltage scaling.
+
+The system core clock (`sys_ck`) can be changed to `pll1_p` with `hal5_change_sys_ck_to_pll1_p` with a single target frequency parameter. This will search for a PLL configuration, initialize it, and change `sys_ck` to `pll1_p` (and automatically adjusts flash latency and voltage scaling).
 
 # Startup and Linker Script
 
@@ -66,7 +78,7 @@ USB Device mode is supported as follows.
 
 ### Endpoint 0 / Default Control Pipe
 
-Endpoint 0, thus default control pipe, is abstracted and implemented by `hal5_usb_device_ep0.c`. This is to support any type of devices, interfaces and endpoints.
+Endpoint 0, thus default control pipe, is abstracted and implemented by `hal5_usb_device_ep0.c`. For a USB 2.0 FS device enumeration completes successfully.
 
 #### Default Control Pipe Status
 
@@ -108,7 +120,7 @@ are implemented with complete parameter and state checks according to USB 2.0 sp
 
 A device should only provide descriptors and implement a few functions given in `hal5_usb_device.h` with `_ex` suffix.
 
-At the moment, only control and bulk transfer types will be supported.
+At the moment, only control and bulk transfer types are supported.
 
 An example USB Device is given in `example_usb_device.c`.
 

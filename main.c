@@ -25,10 +25,25 @@
 #include "bsp.h"
 #include "hal5.h"
 
-void HardFault_Handler(void)
+typedef __PACKED_STRUCT
 {
+    uint32_t r0;
+    uint32_t r1;
+    uint32_t r2;
+    uint32_t r3;
+    uint32_t r12;
+    uint32_t lr;
+    uint32_t pc;
+} exception_stack_frame_t;
+
+void HardFault_Callback(const void* stack_frame)
+{
+    const exception_stack_frame_t* sf = 
+        (exception_stack_frame_t*) stack_frame;
+
+    CONSOLE("HardFault pc=0x%08lX lr=0x%08lX\n", sf->pc, sf->lr);
     bsp_fault();
-    hal5_dump_fault_info();
+    hal5_dump_cfsr_info();
     hal5_freeze();
 }
 
@@ -36,10 +51,13 @@ void button_callback(void)
 {
 }
 
-void boot(void){
+void boot(void) {
+
+    hal5_rcc_initialize();
+
     // configure console as early as possible
     // console uses LPUART1 running with LSI
-    hal5_console_configure(921600);
+    hal5_console_configure(921600, false);
 
     // clear screen and set fg color to red
     // boot messages are shown in red
@@ -49,6 +67,26 @@ void boot(void){
     hal5_console_dump_info();
 
     CONSOLE("Booting...\n");
+
+    const hal5_rcc_reset_status_t reset_status = 
+        hal5_rcc_get_reset_status();
+
+    switch (reset_status)
+    {
+        case reset_status_independent_watchdog:
+            CONSOLE("Due to watchdog reset...\n");
+            break;
+
+        case reset_status_system_reset_by_cpu:
+            CONSOLE("Due to CPU reset...\n");
+            break;
+
+        case reset_status_bor:
+            CONSOLE("Due to brown-out reset...\n");
+            break;
+
+        default:
+    }
 
     hal5_icache_enable();
     CONSOLE("ICACHE enabled.\n");
@@ -80,9 +118,7 @@ void boot(void){
     CONSOLE("RNG enabled. [%08lX]\n", seed);
 
     hal5_usb_configure();
-    CONSOLE("USB configured.\n");
     hal5_usb_device_configure();
-    CONSOLE("USB device configured.\n");
 
     bsp_boot_completed();
     CONSOLE("Boot completed.\n");

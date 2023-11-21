@@ -44,6 +44,7 @@ extern uint32_t __STACK_LIMIT;
 extern __NO_RETURN void __PROGRAM_START(void);
 
 void SystemInit(void) __WEAK;
+void HardFault_Callback(const void* stack_pointer) __WEAK;
 
 void Default_Handler(void);
 __NO_RETURN void Reset_Handler(void);
@@ -51,7 +52,7 @@ __NO_RETURN void Reset_Handler(void);
 #define __WEAK_WITH_DEFAULT __attribute__ ((weak, alias("Default_Handler")))
 
 void NMI_Handler            (void) __WEAK_WITH_DEFAULT;
-void HardFault_Handler      (void) __WEAK;
+void HardFault_Handler      (void) __attribute__((naked));
 void MemManage_Handler      (void) __WEAK_WITH_DEFAULT;
 void BusFault_Handler       (void) __WEAK_WITH_DEFAULT;
 void UsageFault_Handler     (void) __WEAK_WITH_DEFAULT;
@@ -379,9 +380,20 @@ __NO_RETURN void Reset_Handler(void)
   __PROGRAM_START();
 }
 
+volatile uint32_t stack_pointer = 0;
+
 void HardFault_Handler(void)
 {
-  while (1);
+    __asm__("movs r0, #3");
+    __asm__("mov r1, lr");
+    __asm__("tst r1, r0");
+    __asm__("ite ne");
+    __asm__("mrsne r1, psp");
+    __asm__("mrseq r1, msp");
+    __asm__("ldr r0, =stack_pointer");
+    __asm__("str r1, [r0]");
+
+    HardFault_Callback((void*) stack_pointer);
 }
 
 void Default_Handler(void)

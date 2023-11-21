@@ -29,13 +29,17 @@ static bool console_exists = false;
 static uint32_t baud;
 
 void hal5_console_configure(
-        const uint32_t b)
+        const uint32_t b,
+        const bool disable_stdio_buffer)
 {
     baud = b;
     hal5_lpuart_configure(baud);
     console_exists = true;
-    // disable stdout buffering
-    setvbuf(stdout, NULL, _IONBF, 0);
+    if (disable_stdio_buffer) 
+    {
+        // disable stdout buffering
+        setvbuf(stdout, NULL, _IONBF, 0);
+    }
 }
 
 void hal5_console_dump_info() 

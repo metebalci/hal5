@@ -27,6 +27,14 @@
 
 #define CONSOLE(f_, ...) printf((f_), ##__VA_ARGS__)
 
+// these are used for printf-style debugging
+// in case of a name clash, they can be removed/commented out
+#define SHOWP(p) (CONSOLE("" #p ": %p\n", (void*)p))
+#define SHOWU(u) (CONSOLE("" #u ": %lu (0x%08lX)\n", (uint32_t)u, (uint32_t)u))
+#define MARK(n) (CONSOLE("----- MARK %d -----\n", n))
+#define MARKA (CONSOLE("----- MARK A -----\n"))
+#define MARKB (CONSOLE("----- MARK B -----\n"))
+
 #include "hal5_types.h"
 
 #include "hal5_usb.h"
@@ -36,7 +44,7 @@
 extern "C" {
 #endif
 
-void hal5_dump_fault_info(void);
+void hal5_dump_cfsr_info(void);
 void hal5_debug_configure(void);
 void hal5_debug_pulse(void);
 void hal5_freeze(void);
@@ -52,7 +60,8 @@ void hal5_icache_enable(void);
 // CONSOLE
 
 void hal5_console_configure(
-        const uint32_t baud);
+        const uint32_t baud,
+        const bool disable_stdio_buffer);
 
 void hal5_console_dump_info(void);
 
@@ -177,8 +186,11 @@ void hal5_pwr_change_voltage_scaling(
         const hal5_pwr_voltage_scaling_t vos);
 
 // RCC
-//
+
+void hal5_rcc_initialize();
+
 hal5_rcc_reset_status_t hal5_rcc_get_reset_status(void);
+
 void hal5_rcc_dump_clock_info(void);
 
 void hal5_rcc_change_hsidiv(

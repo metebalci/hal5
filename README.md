@@ -19,7 +19,7 @@ The source code in this repository can be divided into four groups:
 
 - board support package: `bsp.h` and `bsp_nucleo_h563zi.c` as an example to support NUCLEO-H563ZI with the example project.
 
-- USB string descriptor helper: `ascii2utf16.py` is a simple utility to encode a string given as a command line argument to UTF-16 to be used as a USB string descriptor.
+- helpers to create and use USB descriptors: `create_descriptors.py` is a simple utility to convert descriptors defined in `descriptors.py` to a C source file.
 
 # Main Features
 
@@ -32,6 +32,8 @@ The source code in this repository can be divided into four groups:
 - CMSIS SysTick_Config is not used but a System tick (actually two ticks) is implemented, one in millisecond, the other is in second resolution.
 
 - The startup code is C-based, not assembly.
+
+- Provides a clear USB device implementation
 
 ## Console
 
@@ -76,6 +78,12 @@ USB Device mode is supported as follows.
 
 ## USB Device Mode
 
+### Descriptors
+
+Descriptors are defined in python in `descriptor.py` file. This is a compact form where the other fields are calculated/derived from the data given in this file.
+
+`create_descriptor.py` uses `descriptor.py` to generate a C source file (`hal5_usb_device_descriptors.c` at the moment) which is compiled together with the application. All descriptors are (statically) initialized in this C source file.
+
 ### Endpoint 0 / Default Control Pipe
 
 Endpoint 0, thus default control pipe, is abstracted and implemented by `hal5_usb_device_ep0.c`. For a USB 2.0 FS device enumeration completes successfully.
@@ -118,9 +126,7 @@ are implemented with complete parameter and state checks according to USB 2.0 sp
 
 ### USB Device
 
-A device should only provide descriptors and implement a few functions given in `hal5_usb_device.h` with `_ex` suffix.
-
-At the moment, only control and bulk transfer types are supported.
+A device implementation should only provide descriptors and implement a few functions given in `hal5_usb_device.h` with `_ex` suffix.
 
 An example USB Device is given in `example_usb_device.c`.
 

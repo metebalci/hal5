@@ -30,6 +30,27 @@
 extern "C" {
 #endif
 
+#define ENDPOINT_DESCRIPTOR_DIRECTION_IN    (0b1 << 7)
+#define ENDPOINT_DESCRIPTOR_DIRECTION_OUT   (0b0 << 7)
+
+#define ENDPOINT_DESCRIPTOR_TRANSFER_TYPE_CONTROL   (0b00)
+#define ENDPOINT_DESCRIPTOR_TRANSFER_TYPE_ISO       (0b01)
+#define ENDPOINT_DESCRIPTOR_TRANSFER_TYPE_BULK      (0b10)
+#define ENDPOINT_DESCRIPTOR_TRANSFER_TYPE_INT       (0b11)
+
+#define ENDPOINT_DESCRIPTOR_SYNC_TYPE_NOSYNC        (0b00<<2)
+#define ENDPOINT_DESCRIPTOR_SYNC_TYPE_ASYNC         (0b01<<2)
+#define ENDPOINT_DESCRIPTOR_SYNC_TYPE_ADAPTIVE      (0b10<<2)
+#define ENDPOINT_DESCRIPTOR_SYNC_TYPE_SYNC          (0b11<<2)
+
+#define ENDPOINT_DESCRIPTOR_USAGE_TYPE_DATA         (0b00<<4)
+#define ENDPOINT_DESCRIPTOR_USAGE_TYPE_FEEDBACK     (0b01<<4)
+#define ENDPOINT_DESCRIPTOR_USAGE_TYPE_IMPLICITFD   (0b10<<4)
+
+extern const hal5_usb_device_descriptor_t* const hal5_usb_device_descriptor __WEAK;
+extern const uint32_t hal5_usb_number_of_string_descriptors __WEAK;
+extern const hal5_usb_string_descriptor_t* const hal5_usb_string_descriptors[] __WEAK;
+
 typedef enum 
 {
     usb_device_state_default,
@@ -65,34 +86,7 @@ void hal5_usb_device_in_transaction_completed_ep0(
 
 // _ex functions
 // must be provided by device implementations
-// see hal5_usb_device_example.c as an example
-
-void hal5_usb_device_get_device_descriptor_ex(
-        void* descriptor) __WEAK;
-
-// for an FS device, simply return false
-bool hal5_usb_device_get_device_qualifier_descriptor_ex(
-        void* descriptor) __WEAK;
-
-bool hal5_usb_device_get_configuration_descriptor_ex(
-        uint8_t configuration,
-        void* descriptor) __WEAK;
-
-bool hal5_usb_device_get_interface_descriptor_ex(
-        uint8_t configuration,
-        uint8_t interface,
-        void* descriptor) __WEAK;
-
-bool hal5_usb_device_get_endpoint_descriptor_ex(
-        uint8_t configuration,
-        uint8_t interface,
-        uint8_t endpoint,
-        void* descriptor) __WEAK;
-
-bool hal5_usb_device_get_string_descriptor_ex(
-        uint8_t index,
-        uint8_t lang_id,
-        void* descriptor) __WEAK;
+// see example_usb_device.c as an example
 
 // Self Powered cannot be changed by Set/Clear Feature
 bool hal5_usb_device_is_device_self_powered_ex();

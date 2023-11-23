@@ -61,7 +61,7 @@ CFLAGS += -O2 -ffunction-sections -fdata-sections
 CFLAGS += $(FLOATFLAGS)
 CFLAGS += -I. -Icmsis/CMSIS/Core/Include -Icmsis_device_h5/Include -DSTM32H563xx
 CFLAGS += --specs=nano.specs
-CFLAGS += -Wall -Werror
+CFLAGS += -Wall #-Werror
 CFLAGS += -Wno-unused-variable -Wno-unused-function 
 CFLAGS += -fmax-errors=5
 
@@ -76,6 +76,9 @@ LDFLAGS += -Wl,--start-group -lc -lm -Wl,--end-group
 LIB_NAME	= hal5.a
 FW_NAME		= example.elf
 
+DESCRIPTORS	= hal5_usb_device_descriptors
+APP_OBJS	+= $(DESCRIPTORS).o
+
 # run cmsis and cmsis_device_h5 only if the directories do not exist
 all: clean lib fw
 
@@ -85,7 +88,11 @@ fw: $(FW_NAME)
 clean:
 	$(RM) $(FW_NAME) 
 	$(RM) $(LIB_NAME) 
+	$(RM) $(DESCRIPTORS).c
 	$(RM) *.o
+
+$(DESCRIPTORS).c: descriptors.py
+	./create_descriptors.py > $(DESCRIPTORS).c
 
 %.o: %.c | cmsis cmsis_device_h5
 	$(CC) $(CFLAGS) -c -o $@ $<

@@ -25,7 +25,7 @@
 
 #include <stm32h5xx.h>
 
-#define MCU_USB_STRING_DESCRIPTOR_MAX_UTF16_LENGTH 64
+#define HAL5_USB_STRING_DESCRIPTOR_BSTRING_MAXLEN (64)
 
 #define FEATURE_SELECTOR_ENDPOINT_HALT          (0)
 #define FEATURE_SELECTOR_DEVICE_REMOTE_WAKEUP   (1) 
@@ -56,6 +56,43 @@ typedef __PACKED_STRUCT
     uint16_t wLength;
 } hal5_usb_device_request_t;
 
+typedef __PACKED_STRUCT 
+{
+    uint8_t bLength;
+    uint8_t bDescriptorType;
+    uint8_t bEndpointAddress;
+    uint8_t bmAttributes;
+    uint16_t wMaxPacketSize;
+    uint8_t bInterval;
+} hal5_usb_endpoint_descriptor_t;
+
+typedef __PACKED_STRUCT
+{
+    uint8_t bLength;
+    uint8_t bDescriptorType;
+    uint8_t bInterfaceNumber;
+    uint8_t bAlternateSetting;
+    uint8_t bNumEndpoints;
+    uint8_t bInterfaceClass;
+    uint8_t bInterfaceSubClass;
+    uint8_t bInterfaceProtocol;
+    uint8_t iInterface;
+    const hal5_usb_endpoint_descriptor_t* const endpoints[];
+} hal5_usb_interface_descriptor_t;
+
+typedef __PACKED_STRUCT
+{
+    uint8_t bLength;
+    uint8_t bDescriptorType;
+    uint16_t wTotalLength;
+    uint8_t bNumInterfaces;
+    uint8_t bConfigurationValue;
+    uint8_t iConfiguration;
+    uint8_t bmAttributes;
+    uint8_t bMaxPower;
+    const hal5_usb_interface_descriptor_t* const interfaces[];
+} hal5_usb_configuration_descriptor_t;
+
 typedef __PACKED_STRUCT
 {
     uint8_t bLength;
@@ -72,55 +109,8 @@ typedef __PACKED_STRUCT
     uint8_t iProduct;
     uint8_t iSerialNumber;
     uint8_t bNumConfigurations;
+    const hal5_usb_configuration_descriptor_t* const configurations[];
 } hal5_usb_device_descriptor_t;
-
-typedef __PACKED_STRUCT
-{
-    uint8_t bLength;
-    uint8_t bDescriptorType;
-    uint16_t bcdUSB;
-    uint8_t bDeviceClass;
-    uint8_t bDeviceSubClass;
-    uint8_t bDeviceProtocol;
-    uint8_t bMaxPacketSize0;
-    uint8_t bNumConfigurations;
-    uint8_t bReserved;
-} hal5_usb_device_qualifier_descriptor_t;
-
-typedef __PACKED_STRUCT
-{
-    uint8_t bLength;
-    uint8_t bDescriptorType;
-    uint16_t wTotalLength;
-    uint8_t bNumInterfaces;
-    uint8_t bConfigurationValue;
-    uint8_t iConfiguration;
-    uint8_t bmAttributes;
-    uint8_t bMaxPower;
-} hal5_usb_configuration_descriptor_t;
-
-typedef __PACKED_STRUCT
-{
-    uint8_t bLength;
-    uint8_t bDescriptorType;
-    uint8_t bInterfaceNumber;
-    uint8_t bAlternateSetting;
-    uint8_t bNumEndPoints;
-    uint8_t bInterfaceClass;
-    uint8_t bInterfaceSubClass;
-    uint8_t bInterfaceProtocol;
-    uint8_t iInterface;
-} hal5_usb_interface_descriptor_t;
-
-typedef __PACKED_STRUCT 
-{
-    uint8_t bLength;
-    uint8_t bDescriptorType;
-    uint8_t bEndpointAddress;
-    uint8_t bmAttributes;
-    uint16_t wMaxPacketSize;
-    uint8_t bInterval;
-} hal5_usb_endpoint_descriptor_t;
 
 typedef __PACKED_STRUCT
 {
@@ -129,7 +119,7 @@ typedef __PACKED_STRUCT
     // a randomly set maximum length of string
     // increase this if you need a longer string 
     // this is not used as length when sending, bLength is used
-    uint8_t bString[MCU_USB_STRING_DESCRIPTOR_MAX_UTF16_LENGTH];
+    const uint8_t bString[];
 } hal5_usb_string_descriptor_t;
 
 typedef enum

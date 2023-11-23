@@ -180,63 +180,9 @@ static void hal5_usb_device_in_transaction_completed(
 
 void hal5_usb_device_configure_buffer_descriptor_table()
 { 
-    // first, find buffer sizes and directions of endpoints
-    // max packet size of an endpoint is encoded as wMaxPacketSize
     uint16_t size[8] = {0};
-
-    // iterate over descriptors
-    // find wMaxPacketSize of each endpoint
-    hal5_usb_device_descriptor_t dd;
-    hal5_usb_device_get_device_descriptor_ex(&dd);
-
-    // max packet size of endpoint 0 is encoded in device descriptor
-    size[0] = dd.bMaxPacketSize0;
-
-    // more than 1 configuration would require a special treatment
-    // like changing interfaces/endpoints on the fly
-    // and re-configuration buffer descriptors
-    // current code does not support this
-    assert (dd.bNumConfigurations == 1);
-
-    for (uint8_t i = 0; i < dd.bNumConfigurations; i++)
-    {
-        hal5_usb_configuration_descriptor_t cd;
-        hal5_usb_device_get_configuration_descriptor_ex(i, &cd);
-
-        for (uint32_t j = 0; j < cd.bNumInterfaces; j++)
-        {
-            hal5_usb_interface_descriptor_t id;
-            hal5_usb_device_get_interface_descriptor_ex(i, j, &id);
-
-            for (uint32_t k = 0; k < id.bNumEndPoints; k++)
-            {
-                hal5_usb_endpoint_descriptor_t ed;
-                hal5_usb_device_get_endpoint_descriptor_ex(i, j, k, &ed);
-
-                const uint8_t ea = (ed.bEndpointAddress & 0x0F);
-
-                // number of endpoints supported is 8
-                // although any endpoint address can be used
-                //  as long as the total number of endpoints is
-                //  less than 8
-                // it is simpler to use only 0 to 7 inclusive
-                // so endpoint number and endpoint address is same
-                assert (ea < 8);
-
-                // if direction is needed, this can be used
-                // if true, it is IN
-                //dir_in[ea] = (ed.bEndpointAddress & 0x80);
-                
-                // ensure to not overwrite
-                assert (size[ea] == 0);
-                size[ea] = ed.wMaxPacketSize;
-
-            }
-        }
-    }
-
+    size[0] = 128;
     hal5_usb_initialize_buffer_descriptor_table(size);
-
 }
 
 static void hal5_usb_device_reset(void)

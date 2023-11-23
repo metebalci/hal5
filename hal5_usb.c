@@ -181,21 +181,27 @@ void hal5_usb_copy_to_endpoint(hal5_usb_transaction_t* trx)
 {
     if (trx->tx_data_len > 0)
     {
-        const uint32_t* data32 = (uint32_t*) trx->tx_data;
+        const uint32_t* const data32 = (uint32_t*) trx->tx_data;
 
-        const uint32_t len_rounded_up = 
-            (trx->tx_data_len + (trx->tx_data_len & 0x03)) >> 2;
+        // len in number of words
+        uint32_t len32 = trx->tx_data_len >> 2;
+        // if tx_data_len is not a multiple of word, add one more word to copy
+        if (trx->tx_data_len & 0x03)
+        {
+            len32++;
+        }
 
-        uint32_t* addr = 
+        uint32_t* const addr = 
             (uint32_t*) (USB_SRAM + (USB_BD[trx->idn].TXBD & 0xFFFF));
 
         // copy word aligned parts
-        for (uint32_t i = 0; i < len_rounded_up; i++)
+        for (uint32_t i = 0; i < len32; i++)
         {
             addr[i] = data32[i];
         }
     }
 
+    // the actual count is used here
     // update count in buffer descriptor
     USB_BD[trx->idn].TXBD = 
         (USB_BD[trx->idn].TXBD & 0xFC00FFFF) | (trx->tx_data_len << 16);
@@ -206,20 +212,27 @@ void hal5_usb_copy_to_endpoint(hal5_usb_transaction_t* trx)
 // but trx->rx_data_len is set as rx_count
 void hal5_usb_copy_from_endpoint(hal5_usb_transaction_t* trx)
 {
-    const uint32_t* buffer32 = 
+    const uint32_t* const buffer32 = 
         (uint32_t*) (USB_SRAM + (USB_BD[trx->idn].RXBD & 0xFFFF));
 
     const uint32_t rx_count = (USB_BD[trx->idn].RXBD & 0x03FF0000) >> 16;
 
-    const uint32_t rx_count_rounded_up = rx_count + (rx_count & 0x3);
+    // len in number of words
+    uint32_t len32 = rx_count >> 2;
+    // if rx_count is not a multiple of word, add one more word to copy
+    if (rx_count & 0x03)
+    {
+        len32++;
+    }
 
-    uint32_t* data32 = (uint32_t*) trx->rx_data;
+    uint32_t* const data32 = (uint32_t*) trx->rx_data;
 
-    for (uint32_t i = 0; i < rx_count_rounded_up; i++)
+    for (uint32_t i = 0; i < len32; i++)
     {
         data32[i] = buffer32[i];
     }
 
+    // use actual count
     trx->rx_data_len = rx_count;
 }
 

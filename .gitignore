@@ -50,3 +50,10 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# downloaded, generated files
+backup/
+cmsis/
+cmsis_device_h5/
+__pycache__/
+hal5_usb_device_descriptors.c

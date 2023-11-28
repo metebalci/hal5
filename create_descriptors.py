@@ -21,13 +21,20 @@
 #
 
 from math import ceil
+import sys
+
 from descriptors import descriptors
 
 strings = ['LANGID en-US']
-encoded_strings = [b'\x04\x09']
+encoded_strings = [b'\x09\x04']
 
-def encode_string(s):
+buffer_size = {}
+
+def encode_string(s, padding=0):
+    if s is None or len(s) == 0:
+        return 0
     idx = len(strings)
+    s = s + ' ' * padding
     strings.append(s)
     encoded_string = s.encode('utf-16le')
     encoded_strings.append(encoded_string)
@@ -51,13 +58,13 @@ def untab():
     indent-=4
 
 def create_string_descriptor(i):
-    p('static const hal5_usb_string_descriptor_t hal5_usb_string_descriptor_%d = ' % i)
+    p('static hal5_usb_string_descriptor_t hal5_usb_string_descriptor_%d = ' % i)
     p('{')
     tab()
     # size
     p('%d,' % (2+len(encoded_strings[i])))
     p('0x03,') # descriptor type
-    p('// %s' % strings[i])
+    p('// "%s"' % strings[i])
     p('{', end='')
     for k in range(0, len(encoded_strings[i])):
         if k > 0:
@@ -73,6 +80,7 @@ def create_string_descriptors():
         create_string_descriptor(i)
     # end
 
+    # number
     p('const uint32_t hal5_usb_number_of_string_descriptors = %d;' % len(strings))
 
     # array
@@ -85,50 +93,69 @@ def create_string_descriptors():
     p('};')
 
 def create_endpoint_descriptor(d):
-    p('static const hal5_usb_endpoint_descriptor_t hal5_usb_endpoint_descriptor_%d = ' % d['address'])
+    address = d['address']
+    p('static const hal5_usb_endpoint_descriptor_t hal5_usb_endpoint_descriptor_%d = ' % address)
     p('{')
     tab()
     p('7, // bLength')
     p('0x05, // bDescriptorType')
-    address = d['address']
-    if d['direction'].lower() == 'in':
-        address = 0x80 | address
+    tt = d['transfer-type'].lower()[0:3]
+    # for control, direction is ignored (set to zero=out)
+    if tt == 'con':
+        assert 'direction' not in d, 'direction given but the endpoint is control'
+    else:
+        assert 'direction' in d, 'direction not given but the endpoint is not control'
+        if d['direction'].lower() == 'in':
+            address = 0x80 | address
     p('0x%02X, // bEndpointAddress' % address)
     attr = 0
-    tt = d['transfer-type'].lower()[0:3]
+    # if tt is iso, st and ut is checked
+    # if tt is not iso, st and ut are reserved to be 0
     if tt == 'con':
         attr = attr | 0x00
+        assert 'sync-type' not in d, 'sync-type given but the endpoint is control'
+        assert 'usage-type' not in d, 'usage-type given but the endpoint is control'
     elif tt == 'iso':
         attr = attr | 0x01
+        st = d['sync-type'].lower()[0:2]
+        if st == 'no':      # e.g. no sync
+            attr = attr | 0x00
+        elif st == 'as':    # e.g. async
+            attr = attr | 0x04
+        elif st == 'ad':    # e.g. adapt
+            attr = attr | 0x08
+        elif st[0] == 's':  # e.g. sync
+            attr = attr | 0x0C
+        else:
+            assert False, 'wrong endpoint sync type: %s' % (d['sync-type'])
+        ut = d['usage-type'].lower()[0]
+        if ut == 'd':       # e.g. data endpoint
+            attr = attr | 0x00
+        elif ut == 'f':     # e.g. feedback endpoint
+            attr = attr | 0x10
+        elif ut == 'i':     # e.g. implicit feedback data endpoint
+            attr = attr | 0x20
+        else:
+            assert False, 'wrong endpoint usage type: %s' % (d['usage-type'])
     elif tt == 'bul':
         attr = attr | 0x02
+        assert 'sync-type' not in d, 'sync-type given but the endpoint is bulk'
+        assert 'usage-type' not in d, 'usage-type given but the endpoint is bulk'
     elif tt == 'int':
         attr = attr | 0x03
+        assert 'sync-type' not in d, 'sync-type given but the endpoint is interrupt'
+        assert 'usage-type' not in d, 'usage-type given but the endpoint is interrupt'
     else:
         assert False, 'wrong endpoint transfer type: %s' % (d['transfer-type'])
-    st = d['sync-type'].lower()[0:2]
-    if st == 'no':      # e.g. no sync
-        attr = attr | 0x00
-    elif st == 'as':    # e.g. async
-        attr = attr | 0x04
-    elif st == 'ad':    # e.g. adapt
-        attr = attr | 0x08
-    elif st[0] == 's':  # e.g. sync
-        attr = attr | 0x0C
-    else:
-        assert False, 'wrong endpoint sync type: %s' % (d['sync-type'])
-    ut = d['usage-type'].lower()[0]
-    if ut == 'd':       # e.g. data endpoint
-        attr = attr | 0x00
-    elif ut == 'f':     # e.g. feedback endpoint
-        attr = attr | 0x10
-    elif ut == 'i':     # e.g. implicit feedback data endpoint
-        attr = attr | 0x20
-    else:
-        assert False, 'wrong endpoint usage type: %s' % (d['usage-type'])
     p('0x%02X, // bmAttributes' % attr)
+    wMaxPacketSize = d['max-packet-size']
+    assert wMaxPacketSize <= 1024, 'wMaxPacketSize should be <= 1024'
     p('%d, // wMaxPacketSize' % d['max-packet-size'])
-    p('%d, // bInterval' % d['interval'])
+    buffer_size[d['address']] = d['buffer-size']
+    if tt == 'iso' or tt == 'int':
+        p('%d, // bInterval' % d['interval'])
+    else:
+        assert 'interval' not in d, 'interval is given but the endpoint is neither iso nor interrupt'
     untab()
     p('};')
 
@@ -208,12 +235,21 @@ def create_device_descriptor(d):
     p('0x%02X, // bDeviceClass' % cp[0])
     p('0x%02X, // bDeviceSubClass' % cp[1])
     p('0x%02X, // bDeviceProtocol' % cp[2])
-    p('%d, // bMaxPacketSize0' % d['max-packet-size'])
+    bMaxPacketSize0 = d['max-packet-size']
+    assert (bMaxPacketSize0 == 8 or
+            bMaxPacketSize0 == 16 or
+            bMaxPacketSize0 == 32 or
+            bMaxPacketSize0 == 64), 'bMaxPacketSize0 has to be 8,16,32 or 64 and depends on USB speed'
+    p('%d, // bMaxPacketSize0' % bMaxPacketSize0)
+    buffer_size[0] = d['buffer-size']
     p('0x%04X, // idVendor' % ids[0])
     p('0x%04X, // idProduct'  % ids[1])
     p('0x%02X%02X, // bcdDevice' % (dv[0], dv[1]))
     p('%d, // iManufacturer' % encode_string(d['manufacturer']))
-    p('%d, // iProduct' % encode_string(d['product']))
+    version_padding = 0
+    if d.get('append_version', True):
+        version_padding = len(' v00.00')
+    p('%d, // iProduct' % encode_string(d['product'], padding=version_padding))
     p('%d, // iSerialNumber' % encode_string(d['serial']))
     p('%d, // bNumConfigurations' % len(d['configurations']))
     p('{')
@@ -225,10 +261,28 @@ def create_device_descriptor(d):
     untab()
     p('};')
     p('const hal5_usb_device_descriptor_t* const hal5_usb_device_descriptor = &hal5_usb_device_descriptor_0;')
+    if d.get('append_version', True):
+        p('const bool hal5_usb_product_string_append_version = true;')
+    else:
+        p('const bool hal5_usb_product_string_append_version = false;')
 
 def create_descriptors(d):
+    p('#include <stdbool.h>')
     p('#include "hal5_usb.h"')
     create_device_descriptor(d)
     create_string_descriptors()
 
+def create_buffer_size():
+    p('const uint32_t hal5_usb_device_endpoint_buffer_sizes[] =');
+    p('{')
+    tab()
+    p('%d' % buffer_size[0], end='')
+    for i in range(1, 8):
+        p(', %d' % buffer_size.get(i, 0), donotindent=True, end='')
+    p()
+    untab()
+    p('};')
+
 create_descriptors(descriptors)
+create_buffer_size()
+

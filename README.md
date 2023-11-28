@@ -80,9 +80,19 @@ USB Device mode is supported as follows.
 
 ### Descriptors
 
-Descriptors are defined in python in `descriptor.py` file. This is a compact form where the other fields are calculated/derived from the data given in this file.
+Descriptors are defined in python in `descriptor.py` file. This is a human-friendly form, because:
 
-`create_descriptor.py` uses `descriptor.py` to generate a C source file (`hal5_usb_device_descriptors.c` at the moment) which is compiled together with the application. All descriptors are (statically) initialized in this C source file.
+- fields like `bLength` is calculated automatically
+- bit fields like `self-powered` attribute is specified as a boolean value
+- additional attributes like `append-version` can be given
+
+Most of the fields have similar names to USB descriptor fields. For an example and documentation, check the `descriptor.py` in the repository. Optional USB descriptors that depend on other fields (such as endpoint transfer type) are checked and expected to be explicitly given or not-given, no defaults assumed to prevent errors.
+
+During a build, `descriptor.py` is used by `create_descriptor.py` to generate a C source file (`hal5_usb_device_descriptors.c`) which is compiled together with the application. All descriptors are (statically) initialized in this C source file.
+
+#### Append Version to Product String
+
+All fields in `descriptor.py` are used as it is except the product string value if it is not `None` and `append_version` is `True`. In this case, the return values of `hal5_usb_device_version_major_ex() and _minor_ex()` are used to create a product name like `<product>_vXX.YY`. XX and YY can be between 0 and 99, and they are shown as single digit (not 0 left-padded) if they are less than 10. I have seen this in a few devices that makes it possible to observe the firmware version without any extra tool since Device Manager in Windows, System Report in macOS, or `lsusb` in Linux shows the product string.
 
 ### Endpoint 0 / Default Control Pipe
 

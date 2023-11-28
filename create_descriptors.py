@@ -28,8 +28,6 @@ from descriptors import descriptors
 strings = ['LANGID en-US']
 encoded_strings = [b'\x09\x04']
 
-buffer_size = {}
-
 def encode_string(s, padding=0):
     if s is None or len(s) == 0:
         return 0
@@ -102,6 +100,8 @@ def create_string_descriptors():
 
 def create_endpoint_descriptor(d):
     address = d['address']
+    assert address != 0, 'endpoint address cannot be 0'
+    assert address < 16, 'endpoint address has to be < 16'
     p('static const hal5_usb_endpoint_descriptor_t hal5_usb_endpoint_descriptor_%d = ' % address)
     p('{')
     tab()
@@ -160,8 +160,8 @@ def create_endpoint_descriptor(d):
     # STM32H5 is USB FS
     # so max is max of USB FS which is 1023 bytes
     assert wMaxPacketSize <= 1023, 'wMaxPacketSize should be <= 1023'
+    assert wMaxPacketSize % 4 == 0, 'not a must but highly recommended to make wMaxPacketSize a multiple of 4'
     p('%d, // wMaxPacketSize' % d['max-packet-size'])
-    buffer_size[d['address']] = wMaxPacketSize
     if tt == 'iso' or tt == 'int':
         p('%d, // bInterval' % d['interval'])
     else:
@@ -251,7 +251,6 @@ def create_device_descriptor(d):
             bMaxPacketSize0 == 32 or
             bMaxPacketSize0 == 64), 'bMaxPacketSize0 has to be 8,16,32 or 64 and depends on USB speed'
     p('%d, // bMaxPacketSize0' % bMaxPacketSize0)
-    buffer_size[0] = bMaxPacketSize0
     p('0x%04X, // idVendor' % ids[0])
     p('0x%04X, // idProduct'  % ids[1])
     p('0x%02X%02X, // bcdDevice' % (dv[0], dv[1]))
@@ -282,17 +281,4 @@ def create_descriptors(d):
     create_device_descriptor(d)
     create_string_descriptors()
 
-def create_buffer_size():
-    p('const uint32_t hal5_usb_device_endpoint_buffer_sizes[] =');
-    p('{')
-    tab()
-    p('%d' % buffer_size[0], end='')
-    for i in range(1, 8):
-        p(', %d' % buffer_size.get(i, 0), donotindent=True, end='')
-    p()
-    untab()
-    p('};')
-
 create_descriptors(descriptors)
-create_buffer_size()
-

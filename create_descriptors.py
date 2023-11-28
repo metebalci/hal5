@@ -157,7 +157,9 @@ def create_endpoint_descriptor(d):
         assert False, 'wrong endpoint transfer type: %s' % (d['transfer-type'])
     p('0x%02X, // bmAttributes' % attr)
     wMaxPacketSize = d['max-packet-size']
-    assert wMaxPacketSize <= 1024, 'wMaxPacketSize should be <= 1024'
+    # STM32H5 is USB FS
+    # so max is max of USB FS which is 1023 bytes
+    assert wMaxPacketSize <= 1023, 'wMaxPacketSize should be <= 1023'
     p('%d, // wMaxPacketSize' % d['max-packet-size'])
     buffer_size[d['address']] = wMaxPacketSize
     if tt == 'iso' or tt == 'int':

@@ -151,7 +151,7 @@ def create_endpoint_descriptor(d):
     wMaxPacketSize = d['max-packet-size']
     assert wMaxPacketSize <= 1024, 'wMaxPacketSize should be <= 1024'
     p('%d, // wMaxPacketSize' % d['max-packet-size'])
-    buffer_size[d['address']] = d['buffer-size']
+    buffer_size[d['address']] = wMaxPacketSize
     if tt == 'iso' or tt == 'int':
         p('%d, // bInterval' % d['interval'])
     else:
@@ -235,13 +235,13 @@ def create_device_descriptor(d):
     p('0x%02X, // bDeviceClass' % cp[0])
     p('0x%02X, // bDeviceSubClass' % cp[1])
     p('0x%02X, // bDeviceProtocol' % cp[2])
-    bMaxPacketSize0 = d['max-packet-size']
+    bMaxPacketSize0 = d['max-packet-size-ep0']
     assert (bMaxPacketSize0 == 8 or
             bMaxPacketSize0 == 16 or
             bMaxPacketSize0 == 32 or
             bMaxPacketSize0 == 64), 'bMaxPacketSize0 has to be 8,16,32 or 64 and depends on USB speed'
     p('%d, // bMaxPacketSize0' % bMaxPacketSize0)
-    buffer_size[0] = d['buffer-size']
+    buffer_size[0] = bMaxPacketSize0
     p('0x%04X, // idVendor' % ids[0])
     p('0x%04X, // idProduct'  % ids[1])
     p('0x%02X%02X, // bcdDevice' % (dv[0], dv[1]))

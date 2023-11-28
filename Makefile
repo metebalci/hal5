@@ -91,7 +91,7 @@ clean:
 	$(RM) $(DESCRIPTORS).c
 	$(RM) *.o
 
-$(DESCRIPTORS).c: descriptors.py
+$(DESCRIPTORS).c: descriptors.py create_descriptors.py
 	./create_descriptors.py > $(DESCRIPTORS).c
 
 %.o: %.c | cmsis cmsis_device_h5

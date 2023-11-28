@@ -38,10 +38,10 @@ descriptors = {
     'class-proto':      (0x00, 0x00, 0x00),
 
     # bMaxPacketSize0
-    'max-packet-size':  64,
-
-    # buffer size for endpoint 0, this is used by HAL5
-    'buffer-size':      64,
+    # for USB LS, it should be 8
+    # for USB FS, it can be any of 8,16,32 or 64
+    # for USB HS, it should be 64
+    'max-packet-size-ep0':  64,
 
     # (idVendor, idProduct)
     'ids':              (0x1209, 0x0001),
@@ -131,9 +131,6 @@ interface0 = {
 
             # wMaxPacketSize
             'max-packet-size':  64,
-
-            # buffer size for this endpoint, used by HAL5
-            'buffer-size':      64,
 
             # bInterval, required only for iso and interrupt endpoints
             #'interval':         1

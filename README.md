@@ -80,15 +80,17 @@ USB Device mode is supported as follows.
 
 ### Descriptors
 
-Descriptors are defined in python in `descriptor.py` file. This is a human-friendly form, because:
+Descriptors are defined in python in `descriptors.py` file. This is a human-friendly form, because:
 
 - fields like `bLength` is calculated automatically
 - bit fields like `self-powered` attribute is specified as a boolean value
 - additional attributes like `append-version` can be given
 
-Most of the fields have similar names to USB descriptor fields. For an example and documentation, check the `descriptor.py` in the repository. Optional USB descriptors that depend on other fields (such as endpoint transfer type) are checked and expected to be explicitly given or not-given, no defaults assumed to prevent errors.
+Most of the fields have similar names to USB descriptor fields. For an example and documentation, check `descriptors.py` in the repository. Optional USB descriptors that depend on other fields (such as endpoint transfer type) are checked and expected to be explicitly given or not-given, no defaults assumed to prevent errors.
 
-During a build, `descriptor.py` is used by `create_descriptor.py` to generate a C source file (`hal5_usb_device_descriptors.c`) which is compiled together with the application. All descriptors are (statically) initialized in this C source file.
+String descriptors are automatically created if given in `descriptors.py`, they are not explicitly created. Only supported language is US English (0x0409), this is defined implicitly in HAL5. However, Unicode can be used in provided strings, they are encoded properly as UTF-16 in generated string descriptors.
+
+During a build, `descriptor.py` is used by `create_descriptor.py` to generate a C source file (`hal5_usb_device_descriptors.c`) which is compiled together with the application. The descriptors are created and initialized in this C source file.
 
 #### Append Version to Product String
 

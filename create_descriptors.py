@@ -75,12 +75,20 @@ def create_string_descriptor(i):
     p('};')
 
 def create_string_descriptors():
+    global strings
+    global encoded_strings
+    # USB 2.0 Spec 9.6.7: USB devices that omit all string descriptors
+    # must not return an array of LANGID codes
+    if len(strings) == 1:
+        strings[0] = ''
+        encoded_strings[0] = ''
+
     # individual string descriptors
     for i in range(0, len(strings)):
         create_string_descriptor(i)
     # end
 
-    # number
+    # number of string descriptors
     p('const uint32_t hal5_usb_number_of_string_descriptors = %d;' % len(strings))
 
     # array

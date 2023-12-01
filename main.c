@@ -103,7 +103,7 @@ void boot(void) {
 
     hal5_change_sys_ck_to_pll1_p(240000000);
 
-    hal5_rcc_dump_clock_info();
+    //hal5_rcc_dump_clock_info();
 
     hal5_rcc_enable_mco2(mco2sel_sysclk, 0);
     CONSOLE("MCO2 shows SYSCLK.\n");
@@ -118,7 +118,6 @@ void boot(void) {
     CONSOLE("RNG enabled. [%08lX]\n", seed);
 
     hal5_usb_configure();
-    hal5_usb_device_configure();
 
     bsp_boot_completed();
     CONSOLE("Boot completed.\n");
@@ -133,6 +132,8 @@ int main(void)
     const bool flower = true;
 
     uint32_t last = hal5_slow_ticks;
+
+    hal5_usb_device_connect();
 
     while (1) {
 

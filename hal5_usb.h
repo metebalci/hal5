@@ -25,23 +25,12 @@
 
 #include <stm32h5xx.h>
 
-#define HAL5_USB_STRING_DESCRIPTOR_BSTRING_MAXLEN (64)
-
 #define FEATURE_SELECTOR_ENDPOINT_HALT          (0)
 #define FEATURE_SELECTOR_DEVICE_REMOTE_WAKEUP   (1) 
 #define FEATURE_SELECTOR_TEST_MODE              (2) 
 
-// usb channel/endpoint registers
-// it is easier to access like this
-#define USB_CHEP  ((uint32_t*) USB_DRD_BASE)
-
 // usb sram
 #define USB_SRAM  ((uint8_t*) USB_DRD_PMAADDR)
-
-// usb buffer descriptors
-// this is inside usb sram, starting from offset 0
-// each descriptor is 2 x 4 bytes
-#define USB_BD    (USB_DRD_PMA_BUFF)
 
 #ifdef __cplusplus
 extern "C" {
@@ -119,7 +108,7 @@ typedef __PACKED_STRUCT
     // a randomly set maximum length of string
     // increase this if you need a longer string 
     // this is not used as length when sending, bLength is used
-    const uint8_t bString[];
+    uint8_t bString[];
 } hal5_usb_string_descriptor_t;
 
 typedef enum
@@ -132,47 +121,146 @@ typedef enum
 
 typedef enum 
 {
-    transfer_type_bulk=0b00,
-    transfer_type_control=0b01,
-    transfer_type_iso=0b10,
-    transfer_type_interrupt=0b11
-} usb_transfer_type_t;
+    ep_utype_bulk=0b00,
+    ep_utype_control=0b01,
+    ep_utype_iso=0b10,
+    ep_utype_interrupt=0b11
+} usb_ep_utype_t;
+
+// the definitions here are sensitive
+// only union and struct/__PACKED_STRUCT combination is working as intended
+// not sure why
+typedef union
+{
+    __IO uint32_t v;
+    struct {
+        __IO unsigned int addr:16;
+        __IO unsigned int count:10;
+        __IO unsigned int num_block:5;
+        __IO unsigned int blsize:1;
+    };
+} hal5_usb_bd_t;
+
+typedef union
+{
+    __IO uint32_t v;
+    struct {
+        __IO unsigned int ea:4;
+        __IO unsigned int stattx:2;
+        __IO unsigned int dtogtx:1;
+        __IO unsigned int vttx:1;
+        __IO unsigned int epkind:1;
+        __IO unsigned int utype:2;
+        __IO unsigned int setup:1;
+        __IO unsigned int statrx:2;
+        __IO unsigned int dtogrx:1;
+        __IO unsigned int vtrx:1;
+
+        __IO unsigned int devaddr:7;
+        __IO unsigned int nak:1;
+        __IO unsigned int ls_ep:1;
+        __IO unsigned int err_tx:1;
+        __IO unsigned int err_rx:1;
+        __IO unsigned int three_err_tx:2;
+        __IO unsigned int three_err_rx:2;
+        __IO unsigned int _reserved:1;
+    };
+} hal5_usb_chep_t;
 
 typedef struct
 {
-    uint8_t     idn;
-    uint8_t     ea;
+    uint8_t         endp;
+    bool            dir_in;
+    usb_ep_utype_t  utype;
+    uint16_t        mps;
+    // temporary copy of data in main memory
+    uint32_t*       packet32 __ALIGNED(4);
 
-    uint32_t    istr;
-    uint32_t    chep;
+    // chep is cached chep_reg when trx completed
+    hal5_usb_chep_t  chep[1];
+    hal5_usb_chep_t  chep2sync[1];
+    hal5_usb_chep_t* chep_reg;    
 
-    uint8_t     rx_data[1024] __ALIGNED(4);
-    uint32_t    rx_data_size;
-    uint32_t    rx_data_len;
+    hal5_usb_bd_t*  rxbd;
+    hal5_usb_bd_t*  txbd;
 
-    uint8_t     tx_data[1024] __ALIGNED(4);
-    uint32_t    tx_data_size;
-    uint32_t    tx_data_len;
+    void*           rxaddr;
+    uint32_t*       rxaddr32;
+    size_t          rx_received;
+    usb_ep_status_t rx_status;
 
-    // rx_data parsed as device_request
-    // used by ep0
+    uint8_t*        rx_data __ALIGNED(4);
+    uint32_t*       rx_data32;
+    size_t          rx_data_size;
+
+    void*           txaddr;
+    uint32_t*       txaddr32;
+    size_t          tx_sent;
+    bool            tx_expected_valid;
+    size_t          tx_expected;
+    usb_ep_status_t tx_status;
+
+    uint8_t*        tx_data __ALIGNED(4);
+    uint32_t*       tx_data32;
+    size_t          tx_data_size;
+
     hal5_usb_device_request_t* device_request;
 
-} hal5_usb_transaction_t;
+} hal5_usb_endpoint_t;
 
-void hal5_usb_configure();
+void hal5_usb_configure(void);
 
-void hal5_usb_initialize_buffer_descriptor_table(uint16_t size[]);
+size_t hal5_usb_device_copy_to_endpoint(
+        hal5_usb_endpoint_t* ep);
 
-void hal5_usb_prepare_ep0_for_setup();
+size_t hal5_usb_device_copy_from_endpoint(
+        hal5_usb_endpoint_t* ep);
 
-void hal5_usb_prepare_endpoint(
-        hal5_usb_transaction_t* trx,
+// pass ed=NULL for endpoint 0
+// then it automatically reads the max packet size 
+// from hal5_usb_device_descriptor
+// and assumes it is a control endpoint
+hal5_usb_endpoint_t* hal5_usb_ep_create(
+        const hal5_usb_endpoint_descriptor_t* ed,
+        const uint32_t next_bd_addr);
+
+void hal5_usb_ep_free(
+        hal5_usb_endpoint_t* ep);
+
+void hal5_usb_ep_dump_status(
+        hal5_usb_endpoint_t* ep);
+
+void hal5_usb_ep_sync_from_reg(
+        hal5_usb_endpoint_t* ep);
+
+void hal5_usb_ep_sync_to_reg(
+        hal5_usb_endpoint_t* ep);
+
+void hal5_usb_ep_clear_data(
+        hal5_usb_endpoint_t* ep);
+
+void hal5_usb_ep_clear_vtrx(
+        hal5_usb_endpoint_t* ep);
+
+void hal5_usb_ep_clear_vttx(
+        hal5_usb_endpoint_t* ep);
+
+void hal5_usb_ep_set_status(
+        hal5_usb_endpoint_t* ep,
         usb_ep_status_t rx_status,
         usb_ep_status_t tx_status);
 
-void hal5_usb_copy_to_endpoint(hal5_usb_transaction_t*);
-void hal5_usb_copy_from_endpoint(hal5_usb_transaction_t*);
+void hal5_usb_ep_prepare_for_in(
+        hal5_usb_endpoint_t* ep,
+        usb_ep_status_t rx_status,
+        const void* data,
+        const size_t len,
+        const bool tx_expected_valid,
+        const size_t tx_expected);
+
+void hal5_usb_ep_prepare_for_out(
+        hal5_usb_endpoint_t* ep,
+        usb_ep_status_t tx_status);
 
 #ifdef __cplusplus
 }

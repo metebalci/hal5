@@ -35,6 +35,22 @@
 #define MARKA (CONSOLE("----- MARK A -----\n"))
 #define MARKB (CONSOLE("----- MARK B -----\n"))
 
+// https://stackoverflow.com/a/58532788/313811
+#define HAL5_MAX(a,b)        \
+({                           \
+    __typeof__ (a) _a = (a); \
+    __typeof__ (b) _b = (b); \
+    _a > _b ? _a : _b;       \
+})
+
+// https://stackoverflow.com/a/58532788/313811
+#define HAL5_MIN(a,b)        \
+({                           \
+    __typeof__ (a) _a = (a); \
+    __typeof__ (b) _b = (b); \
+    _a < _b ? _a : _b;       \
+})
+
 #include "hal5_types.h"
 
 #include "hal5_usb.h"

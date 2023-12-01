@@ -18,10 +18,12 @@
 # limitations under the License.
 #
 
+#MAKEFLAGS	:= --jobs=$(shell nproc) --output-sync=line
+
 DEVICE		= stm32h5
 BOARD		= nucleo_h563zi
 APP_OBJS	= main.o syscalls.o 
-APP_OBJS	+= startup_$(DEVICE).o bsp_$(BOARD).o 
+APP_OBJS	+= startup_$(DEVICE).o bsp_$(BOARD).o
 APP_OBJS	+= example_usb_device.o
 
 # set fpu to soft, softfp or hard
@@ -57,11 +59,12 @@ endif
 
 CFLAGS = -std=gnu11
 CFLAGS += -mcpu=cortex-m33 -mthumb
-CFLAGS += -O2 -ffunction-sections -fdata-sections
+CFLAGS += -O0 -g
+CFLAGS += -ffunction-sections -fdata-sections
 CFLAGS += $(FLOATFLAGS)
 CFLAGS += -I. -Icmsis/CMSIS/Core/Include -Icmsis_device_h5/Include -DSTM32H563xx
 CFLAGS += --specs=nano.specs
-CFLAGS += -Wall #-Werror
+CFLAGS += -Wall -Werror
 CFLAGS += -Wno-unused-variable -Wno-unused-function 
 CFLAGS += -fmax-errors=5
 
@@ -80,7 +83,8 @@ DESCRIPTORS	= hal5_usb_device_descriptors
 APP_OBJS	+= $(DESCRIPTORS).o
 
 # run cmsis and cmsis_device_h5 only if the directories do not exist
-all: clean lib fw
+all: clean lib fw flash
+only: clean lib fw
 
 lib: $(LIB_NAME)
 fw: $(FW_NAME)

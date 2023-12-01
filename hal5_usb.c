@@ -20,6 +20,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -109,209 +110,400 @@ static uint32_t hal5_usb_find_chep_status_toggle(
     return (current & 0b11);
 }
 
-// this is only to be called 
-void hal5_usb_prepare_ep0_for_setup()
+uint32_t apply_to_chep(uint32_t old, uint32_t new)
 {
-    const uint32_t newchep = (
-            0xFFFF0000 | 
-            (0b11 << USB_CHEP_RX_STRX_Pos) | 
-            // 0b01=control
-            (0b01 << USB_CHEP_UTYPE_Pos) | 
-            (0b00 << USB_CHEP_TX_STTX_Pos) | 
-            0);
+    uint32_t rc_w0  = 0b01111110100000001000000010000000;
+    uint32_t t      = 0b00000000000000000111000001110000;
+    uint32_t r      = 0b00000000000000000000100000000000;
+    uint32_t rw     = 0b00000001011111110000011100001111;
 
-    USB_CHEP[0] = newchep;
+    uint32_t cleared = old & ~(t & new);
+    uint32_t toggled = old ^ (t & new);
+    uint32_t read    = r & old;
+    uint32_t written = rw & new;
+
+    return (cleared | toggled | read | written);
 }
 
-void hal5_usb_prepare_endpoint(
-        hal5_usb_transaction_t* trx,
+void hal5_usb_ep_clear_data(
+        hal5_usb_endpoint_t* ep)
+{
+    ep->rx_received = 0;
+
+    ep->tx_sent     = 0;
+    ep->tx_expected = 0;
+    ep->tx_expected_valid = 0;
+
+    ep->tx_data_size    = 0;
+}
+
+void hal5_usb_ep_clear_vtrx(
+        hal5_usb_endpoint_t* ep)
+{
+    ep->chep2sync->vtrx = 0;
+}
+
+void hal5_usb_ep_clear_vttx(
+        hal5_usb_endpoint_t* ep)
+{
+    ep->chep2sync->vttx = 0;
+}
+
+void hal5_usb_ep_set_status(
+        hal5_usb_endpoint_t* ep,
         usb_ep_status_t rx_status,
         usb_ep_status_t tx_status)
 {
-    // copy data to endpoint buffer if it will transmit
-    if (tx_status == ep_status_valid)
-    {
-        hal5_usb_copy_to_endpoint(trx);
-    }
-
-    // writing invariant values 1 and 0 to vtrx, vttx and dtogrx, dtogtx 
-    // writing invariant values 00 to stattx
-
-    // making statrx 11 by writing inverse of statrx
-    // i.e. if it is 10, writing 01 makes it 11
-    // making stattx 00 by writing itself
-    // i.e. if it is 10, writing 10 makes it 00
-    
-    const uint32_t chep = trx->chep;
-    
-    // ATTENTION
-    // DO NOT ENABLE RX AND TX AT THE SAME TIME
-    // I THINK IT IS NOT WORKING IF BOTH IS ENABLED AT THE SAME TIME
-   
-    const uint32_t strx = hal5_usb_find_chep_status_toggle(
-            ((chep & USB_CHEP_RX_STRX_Msk) >> USB_CHEP_RX_STRX_Pos),
+    ep->chep2sync->statrx = hal5_usb_find_chep_status_toggle(
+            ep->chep->statrx,
             rx_status);
 
-    const uint32_t sttx = hal5_usb_find_chep_status_toggle(
-            ((chep & USB_CHEP_TX_STTX_Msk) >> USB_CHEP_TX_STTX_Pos),
+    ep->rx_status = rx_status;
+
+    ep->chep2sync->stattx = hal5_usb_find_chep_status_toggle(
+            ep->chep->stattx,
             tx_status);
 
-    // when device address is assigned
-    // CHEP[EA] should contain device address as well
-    const uint32_t newchep = (
-            0xFFFF0000 | 
-            (strx << USB_CHEP_RX_STRX_Pos) | 
-            // 0b01=control
-            (0b01 << USB_CHEP_UTYPE_Pos) | 
-            (sttx << USB_CHEP_TX_STTX_Pos) | 
-            trx->ea);
+    ep->tx_status = tx_status;
+}
 
-    USB_CHEP[trx->idn] = newchep;
+static void dump_status(
+        usb_ep_status_t status)
+{
+    switch (status)
+    {
+        case ep_status_valid: CONSOLE("V"); break;
+        case ep_status_stall: CONSOLE("S"); break;
+        case ep_status_nak: CONSOLE("N"); break;
+        case ep_status_disabled: CONSOLE("X"); break;
+    }
+}
+
+void hal5_usb_ep_dump_status(
+        hal5_usb_endpoint_t* ep)
+{
+    dump_status(ep->rx_status);
+    dump_status(ep->tx_status);
+    CONSOLE("\n");
+}
+
+void hal5_usb_ep_sync_from_reg(
+        hal5_usb_endpoint_t* ep)
+{
+    ep->chep->v = ep->chep_reg->v;
+    ep->chep2sync->v = ep->chep->v;
+
+    // below are the defaults
+
+    // vtrx and vttx can only be cleared with 0
+    // they can be directly set, e.g. ep->chep->vtrx = 0
+    
+    // dtogrx, statrx, dtogtx, stattx can only be toggled with 1
+    // they should be set with ep_set_... methods
+
+    // the fields below are modified from original
+    // clear-only does not clear
+    // toggle does not toggle
+    ep->chep2sync->three_err_rx = 0b11; // clear only
+    ep->chep2sync->three_err_tx = 0b11; // clear only
+    ep->chep2sync->err_rx = 0b1;        // clear only
+    ep->chep2sync->err_tx = 0b1;        // clear only
+                                        // ls_ep is rw
+    ep->chep2sync->nak = 0b1;           // clear only
+                                        // devaddr is rw
+    ep->chep2sync->vtrx = 0b1;          // clear only
+    ep->chep2sync->dtogrx = 0b0;        // toggle
+    ep->chep2sync->statrx = 0b00;       // toggle
+                                        // setup is read only
+                                        // utype is rw
+                                        // epkind is rw
+    ep->chep2sync->vttx = 0b1;          // clear only
+    ep->chep2sync->dtogtx = 0b0;        // toggle
+    ep->chep2sync->stattx = 0b00;       // toggle
+                                        // ea is rw
+    
+    hal5_usb_ep_set_status(
+            ep, 
+            ep_status_disabled,
+            ep_status_disabled);
+}
+
+void hal5_usb_ep_sync_to_reg(
+        hal5_usb_endpoint_t* ep)
+{
+    ep->chep_reg->v = ep->chep2sync->v;
+}
+
+hal5_usb_endpoint_t* hal5_usb_ep_create(
+        const hal5_usb_endpoint_descriptor_t* ed,
+        const uint32_t next_bd_addr)
+{
+    // first 64 bytes are buffer descriptors
+    assert (next_bd_addr >= 64);
+    // USB_SRAM is 2048 bytes
+    assert (next_bd_addr <= 2048);
+    // USB_SRAM is word wide, so addr must be word aligned
+    assert ((next_bd_addr % 4) == 0);
+
+    uint32_t endpoint_address;
+    uint16_t max_packet_size;
+    usb_ep_utype_t utype;
+    if (ed == NULL) 
+    {
+        endpoint_address = 0;
+        max_packet_size = hal5_usb_device_descriptor->bMaxPacketSize0;
+        utype = ep_utype_control;
+    }
+    else
+    {
+        endpoint_address = ed->bEndpointAddress;
+        max_packet_size = ed->wMaxPacketSize;
+        switch (ed->bmAttributes & 0x3)
+        {
+            // control
+            case 0b00: utype = ep_utype_control; break;
+            // iso
+            case 0b01: utype = ep_utype_iso; break; 
+            // bulk
+            case 0b10: utype = ep_utype_bulk; break;
+            // interrupt
+            case 0b11: utype = ep_utype_interrupt; break;
+            default: assert (false);
+        }
+    }
+
+    hal5_usb_endpoint_t* ep = (hal5_usb_endpoint_t*) 
+        calloc(1, sizeof(hal5_usb_endpoint_t));
+    ep->endp = endpoint_address & 0xF;
+    ep->dir_in = endpoint_address & 0x80;
+    ep->utype = utype;
+    ep->mps = max_packet_size;
+    ep->packet32 = (uint32_t*) malloc(ep->mps);
+
+    if ((utype == ep_utype_control) || ep->dir_in)
+    {
+        ep->rx_data = (uint8_t*) malloc(1024);
+        ep->rx_data32 = (uint32_t*) ep->rx_data;
+    } 
+    else
+    {
+        ep->rx_data = NULL;
+    }
+
+    if ((utype == ep_utype_control) || !ep->dir_in)
+    {
+        ep->tx_data = (uint8_t*) malloc(1024);
+        ep->tx_data32 = (uint32_t*) ep->tx_data;
+    }
+    else
+    {
+        ep->tx_data = NULL;
+    }
+
+    ep->chep_reg = (hal5_usb_chep_t*) (USB_DRD_BASE + 4*ep->endp);
+    ep->chep_reg->ea = ep->endp;
+    ep->chep_reg->utype = ep->utype;
+    hal5_usb_ep_sync_from_reg(ep);
+
+    // a buffer descriptor for each endpoint has two 32-bit registers (txbd and rxbd)
+    // that means for each endpoint there is an 8 byte buffer descriptor entry
+    // this also means the buffer descriptor table (for all endpoints) is
+    //   8 endpoints x 8 bytes = 64 bytes (the first 64 bytes of USB SRAM)
+
+    // txbd is first
+    if ((ep->utype == ep_utype_control) |
+        (ep->dir_in))
+    {
+        ep->txbd = (hal5_usb_bd_t*) (USB_SRAM + 8*ep->endp);
+    }
+    // then rxbd (the structure is uint32_t, +1 means +4 bytes)
+    if ((ep->utype == ep_utype_control) |
+        (!ep->dir_in))
+    {
+        ep->rxbd = ep->txbd + 1;
+    }
+
+    // control endpoint is bidirectional, so requires both rxbd and txbd
+    // setup rxbd for control and other endpoints with IN direction
+    // rxbd count is set by the hardware
+    // the size of (allocated) buffer has to be specified
+    if (ep->rxbd != NULL)
+    {
+        const uint32_t allocated_memory = ep->mps;
+        assert (allocated_memory > 0);
+        assert (allocated_memory <= 1024);
+        assert ((allocated_memory % 2) == 0);
+
+        if (allocated_memory < 64)
+        {
+            // block size 2 bytes
+            ep->rxbd->blsize = 0;
+            // num_block = 0 is not allowed, condition already asserted above
+            ep->rxbd->num_block = allocated_memory / 2;
+        }
+        else
+        {
+            // block size 32 bytes
+            ep->rxbd->blsize = 1;
+            // the last value actually means 1023 bytes (max packet size of USB FS)
+            // -1 because num_block=0 means 32 bytes
+            ep->rxbd->num_block = (allocated_memory / 32) - 1;
+        } 
+
+        ep->rxbd->addr = next_bd_addr;
+
+        ep->rxaddr = USB_SRAM + ep->rxbd->addr;
+        ep->rxaddr32 = (uint32_t*) ep->rxaddr;
+    }
+
+    // setup txbd for control and other endpoints with OUT direction
+    // txbd count is set before every transaction
+    if (ep->txbd != NULL)
+    {
+        ep->txbd->addr = next_bd_addr;
+
+        ep->txaddr = USB_SRAM + ep->txbd->addr;
+        ep->txaddr32 = (uint32_t*) ep->txaddr;
+    }
+
+    /*
+    CONSOLE("USB_DRD_BASE   = %p\n", (uint32_t*) USB_DRD_BASE);
+    CONSOLE("USB_SRAM       = %p\n", USB_SRAM);
+    CONSOLE("ep.rxbd        = %p\n", ep->rxbd);
+    CONSOLE("ep.txbd        = %p\n", ep->txbd);
+    CONSOLE("ep.rxbd.v      = 0x%08lX\n", ep->rxbd->v);
+    CONSOLE("ep.txbd.v      = 0x%08lX\n", ep->txbd->v);
+    CONSOLE("ep.rxaddr      = %p\n", ep->rxaddr);
+    CONSOLE("ep.txaddr      = %p\n", ep->txaddr);
+    */
+    /*
+    CONSOLE("ep.rxbd.blsize     = %u\n", ep->rxbd->blsize);
+    CONSOLE("ep.rxbd.num_block  = %u\n", ep->rxbd->num_block);
+    CONSOLE("ep.rxbd.addr       = %u\n", ep->rxbd->addr);
+    CONSOLE("ep.txbd.addr       = %u\n", ep->txbd->addr);
+    */
+
+    return ep;
+}
+
+void hal5_usb_ep_free(
+        hal5_usb_endpoint_t* ep)
+{
+    if (ep != NULL)
+    {
+        free(ep->packet32);
+        free(ep->rx_data);
+        free(ep->tx_data);
+        free(ep);
+    }
 }
 
 // ATTENTION
 // copy from and copy to USB SRAM is word aligned
-// do not use memcpy
+// so memcpy cannot be used
 
-// this function assumes the buffer descriptor rx_addr is 4-bytes aligned
+// the functions below assumes the buffer pointers are word aligned
 // this is ensured when buffer descriptors are initialized
-// so if tx_data_len is not a multiple of 4 bytes
-// it actually copies more (up to allocated) but sets tx_count exact
-void hal5_usb_copy_to_endpoint(hal5_usb_transaction_t* trx)
+
+// using an extra buffer as big as max packet size (packet32)
+// simplifies the operations
+
+size_t hal5_usb_device_copy_to_endpoint(
+        hal5_usb_endpoint_t* ep)
 {
-    if (trx->tx_data_len > 0)
+    size_t tx_count = ep->tx_data_size - ep->tx_sent;
+
+    if (tx_count > ep->mps)
     {
-        const uint32_t* const data32 = (uint32_t*) trx->tx_data;
+        tx_count = ep->mps;
+    }
+
+    if (tx_count > 0)
+    {
+        // COPY bytes IN MAIN MEMORY
+        memcpy(
+                ep->packet32, 
+                ep->tx_data + ep->tx_sent,
+                tx_count);
 
         // len in number of words
-        uint32_t len32 = trx->tx_data_len >> 2;
-        // if tx_data_len is not a multiple of word, add one more word to copy
-        if (trx->tx_data_len & 0x03)
+        uint32_t len32 = tx_count >> 2;
+
+        // if tx_count is not a multiple of word, add one more word to copy
+        if (tx_count & 0x03)
         {
             len32++;
         }
 
-        uint32_t* const addr = 
-            (uint32_t*) (USB_SRAM + (USB_BD[trx->idn].TXBD & 0xFFFF));
-
-        // copy word aligned parts
-        for (uint32_t i = 0; i < len32; i++)
+        // COPY words TO USB SRAM
+        for (size_t i = 0; i < len32; i++)
         {
-            addr[i] = data32[i];
+            ep->txaddr32[i] = ep->packet32[i];
         }
     }
 
-    // the actual count is used here
-    // update count in buffer descriptor
-    USB_BD[trx->idn].TXBD = 
-        (USB_BD[trx->idn].TXBD & 0xFC00FFFF) | (trx->tx_data_len << 16);
+    ep->txbd->count = tx_count;
+
+    return tx_count;
 }
 
-// this function writes more to trx->rx_data 
-//  if rx_count is not a 4 bytes multiple
-// but trx->rx_data_len is set as rx_count
-void hal5_usb_copy_from_endpoint(hal5_usb_transaction_t* trx)
+size_t hal5_usb_device_copy_from_endpoint(
+        hal5_usb_endpoint_t* ep)
 {
-    const uint32_t* const buffer32 = 
-        (uint32_t*) (USB_SRAM + (USB_BD[trx->idn].RXBD & 0xFFFF));
-
-    const uint32_t rx_count = (USB_BD[trx->idn].RXBD & 0x03FF0000) >> 16;
+    const uint32_t rx_count = ep->rxbd->count;
 
     // len in number of words
-    uint32_t len32 = rx_count >> 2;
+    size_t len32 = rx_count >> 2;
+
     // if rx_count is not a multiple of word, add one more word to copy
     if (rx_count & 0x03)
     {
         len32++;
     }
 
-    uint32_t* const data32 = (uint32_t*) trx->rx_data;
-
-    for (uint32_t i = 0; i < len32; i++)
+    // COPY words FROM USB SRAM
+    for (size_t i = 0; i < len32; i++)
     {
-        data32[i] = buffer32[i];
+        ep->packet32[i] = ep->rxaddr32[i];
     }
 
-    // use actual count
-    trx->rx_data_len = rx_count;
+    // COPY bytes IN MAIN MEMORY
+    memcpy(
+            ep->rx_data + ep->rx_received,
+            ep->packet32,
+            rx_count);
+
+    return rx_count;
 }
 
-static uint32_t hal5_usb_rxbd_pack(
-        uint32_t allocated_memory, 
-        uint32_t rx_addr_offset)
+void hal5_usb_ep_prepare_for_in(
+        hal5_usb_endpoint_t* ep,
+        usb_ep_status_t rx_status,
+        const void* data,
+        const size_t len,
+        const bool tx_expected_valid,
+        const size_t tx_expected)
 {
-    assert (allocated_memory > 0);
-    // max 1024? but actually it is set as 1023?
-    assert (allocated_memory <= 1024);
-    // has to be even size
-    assert (allocated_memory % 2 == 0);
-    // rx_addr has to be 4-bytes aligned
-    assert (rx_addr_offset % 4 == 0);
-    assert (rx_addr_offset <= 0xFFFF);
+    if (data != NULL)
+    {
+        memcpy(
+                ep->tx_data, 
+                data,
+                len);
+    }
 
-    if (allocated_memory < 64) 
-    {
-        // blsize = 0
-        return (((allocated_memory / 2) << 26) | rx_addr_offset);
-    }
-    else
-    {
-        // blsize = 1
-        return (0x80000000 | (((allocated_memory / 32) - 1) << 26) | rx_addr_offset);
-    }
+    ep->tx_data_size    = len;
+    ep->tx_sent         = 0;
+
+    ep->tx_expected_valid   = tx_expected_valid;
+    ep->tx_expected         = tx_expected;
+
+    hal5_usb_ep_set_status(ep, rx_status, ep_status_valid);
 }
 
-static uint32_t hal5_usb_txbd_pack(
-        uint32_t tx_addr_offset)
+void hal5_usb_ep_prepare_for_out(
+        hal5_usb_endpoint_t* ep,
+        usb_ep_status_t tx_status)
 {
-    // tx_addr has to be 4-bytes aligned
-    assert (tx_addr_offset % 4 == 0);
-    assert (tx_addr_offset <= 0xFFFF);
-    return tx_addr_offset;
-}
-
-// initialize buffer descriptors
-// dir_in is true if dir=IN, false if dir=OUT
-// size is buffer size (maxPacketSize in descriptors)
-// size for unused buffers should be 0 !
-void hal5_usb_initialize_buffer_descriptor_table(
-        uint16_t* size)
-{
-    // starts from 64
-    // first 64 bytes is buffer descriptor table
-    uint32_t next_addr = 64;
-
-    for (uint8_t n = 0; n < 8; n++)
-    {
-        // IMPORTANT: ensure alignment
-        // copy to and from functions above depends on this
-        // so the actual buffer length might be larger than requested
-        // to align it to word boundary 
-        // ie 3 bytes requested, it will be 4
-        next_addr = next_addr + (next_addr & 0x3);
-        // USB SRAM is 2K
-        assert (next_addr < 2048);
-
-        if (size[n] > 0) 
-        {
-            // both IN and OUT is set and using the same buffer area
-            // since IN and OUT is not used at the same time
-            USB_BD[n].RXBD = hal5_usb_rxbd_pack(size[n], next_addr);
-            USB_BD[n].TXBD = hal5_usb_txbd_pack(next_addr);
-        }
-        else
-        {
-            USB_BD[n].RXBD = 0;
-            USB_BD[n].TXBD = 0;
-        }
-
-        next_addr += size[n];
-    }
-
-    for (uint8_t n = 0; n < 8; n++)
-    {
-        CONSOLE("USB_BD[%u] RXBD=0x%08lX TXBD=0x%08lX\n", 
-                n, USB_BD[n].RXBD, USB_BD[n].TXBD);
-    }
-
+    hal5_usb_ep_set_status(ep, ep_status_valid, tx_status);
 }

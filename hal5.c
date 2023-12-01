@@ -156,9 +156,6 @@ void hal5_change_sys_ck_to_pll1_p(
         const uint32_t target_ck)
 {
     uint32_t divm, muln, divp;
-    CONSOLE("Searching for PLL config with %lu for %lu...\n", 
-            hal5_rcc_get_hsi_ck(), 
-            target_ck);
     bool pll_config_found = hal5_rcc_search_pll_config_integer_mode(
             hal5_rcc_get_hsi_ck(),
             target_ck, 0, 0, true,

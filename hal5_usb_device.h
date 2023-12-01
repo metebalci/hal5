@@ -30,35 +30,18 @@
 extern "C" {
 #endif
 
-#define ENDPOINT_DESCRIPTOR_DIRECTION_IN    (0b1 << 7)
-#define ENDPOINT_DESCRIPTOR_DIRECTION_OUT   (0b0 << 7)
-
-#define ENDPOINT_DESCRIPTOR_TRANSFER_TYPE_CONTROL   (0b00)
-#define ENDPOINT_DESCRIPTOR_TRANSFER_TYPE_ISO       (0b01)
-#define ENDPOINT_DESCRIPTOR_TRANSFER_TYPE_BULK      (0b10)
-#define ENDPOINT_DESCRIPTOR_TRANSFER_TYPE_INT       (0b11)
-
-#define ENDPOINT_DESCRIPTOR_SYNC_TYPE_NOSYNC        (0b00<<2)
-#define ENDPOINT_DESCRIPTOR_SYNC_TYPE_ASYNC         (0b01<<2)
-#define ENDPOINT_DESCRIPTOR_SYNC_TYPE_ADAPTIVE      (0b10<<2)
-#define ENDPOINT_DESCRIPTOR_SYNC_TYPE_SYNC          (0b11<<2)
-
-#define ENDPOINT_DESCRIPTOR_USAGE_TYPE_DATA         (0b00<<4)
-#define ENDPOINT_DESCRIPTOR_USAGE_TYPE_FEEDBACK     (0b01<<4)
-#define ENDPOINT_DESCRIPTOR_USAGE_TYPE_IMPLICITFD   (0b10<<4)
-
 extern const hal5_usb_device_descriptor_t* const hal5_usb_device_descriptor __WEAK;
 extern const uint32_t hal5_usb_number_of_string_descriptors __WEAK;
 extern const hal5_usb_string_descriptor_t* const hal5_usb_string_descriptors[] __WEAK;
+extern const bool hal5_usb_product_string_append_version __WEAK;
 
 typedef enum 
 {
     usb_device_state_default,
-    usb_device_state_address,
+    usb_device_state_addressed,
     usb_device_state_configured,
 } hal5_usb_device_state_t;
 
-void hal5_usb_device_configure(void);
 void hal5_usb_device_connect(void);
 void hal5_usb_device_disconnect(void);
 
@@ -76,17 +59,22 @@ bool hal5_usb_device_set_configuration_value(uint8_t configuration_value);
 // endpoint 0 - enumeration support
 // these are implemented by hal5_usb_device_ep0.c
 void hal5_usb_device_setup_transaction_completed_ep0(
-        hal5_usb_transaction_t *trx);
+        hal5_usb_endpoint_t *ep);
 
-void hal5_usb_device_out_transaction_completed_ep0(
-        hal5_usb_transaction_t *trx);
+void hal5_usb_device_out_stage_completed_ep0(
+        hal5_usb_endpoint_t *ep);
 
-void hal5_usb_device_in_transaction_completed_ep0(
-        hal5_usb_transaction_t *trx);
+void hal5_usb_device_in_stage_completed_ep0(
+        hal5_usb_endpoint_t *ep);
 
 // _ex functions
 // must be provided by device implementations
 // see example_usb_device.c as an example
+
+// between 0 and 99
+uint8_t hal5_usb_device_version_major_ex();
+// between 9 and 99
+uint8_t hal5_usb_device_version_minor_ex();
 
 // Self Powered cannot be changed by Set/Clear Feature
 bool hal5_usb_device_is_device_self_powered_ex();
@@ -120,10 +108,7 @@ bool hal5_usb_device_get_synch_frame_ex(
         bool dir_in,
         uint16_t* frame_number);
 
-// return 0 if not configured
-uint8_t hal5_usb_device_get_current_configuration_value_ex();
-
-bool hal5_usb_device_set_configuration_ex(
+void hal5_usb_device_set_configuration_ex(
         uint8_t configuration_value);
 
 bool hal5_usb_device_get_interface_ex(
@@ -134,11 +119,11 @@ bool hal5_usb_device_set_interface_ex(
         uint8_t interface,
         uint8_t alternate_setting);
 
-void hal5_usb_device_out_transaction_completed_ex(
-        hal5_usb_transaction_t *trx) __WEAK;
+void hal5_usb_device_out_stage_completed_ex(
+        hal5_usb_endpoint_t *ep) __WEAK;
 
-void hal5_usb_device_in_transaction_completed_ex(
-        hal5_usb_transaction_t *trx) __WEAK;
+void hal5_usb_device_in_stage_completed_ex(
+        hal5_usb_endpoint_t *ep) __WEAK;
 
 #ifdef __cplusplus
 }

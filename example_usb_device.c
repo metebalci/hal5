@@ -22,6 +22,16 @@
 
 #include "hal5_usb_device.h"
 
+uint8_t hal5_usb_device_version_major_ex()
+{
+    return 12;
+}
+
+uint8_t hal5_usb_device_version_minor_ex()
+{
+    return 34;
+}
+
 bool hal5_usb_device_is_device_self_powered_ex() 
 { 
     return true; 
@@ -84,15 +94,9 @@ bool hal5_usb_device_get_synch_frame_ex(
     return false;
 }
 
-uint8_t hal5_usb_device_get_current_configuration_value_ex()
-{
-    return 0;
-}
-
-bool hal5_usb_device_set_configuration_ex(
+void hal5_usb_device_set_configuration_ex(
         uint8_t configuration_value)
 {
-    return true;
 }
 
 // return current alternate setting
@@ -112,12 +116,12 @@ bool hal5_usb_device_set_interface_ex(
 }
 
 
-void hal5_usb_device_out_transaction_completed_ex(
-        hal5_usb_transaction_t* trx)
+void hal5_usb_device_out_stage_completed_ex(
+        hal5_usb_endpoint_t* ep)
 {
 }
 
-void hal5_usb_device_in_transaction_completed_ex(
-        hal5_usb_transaction_t* trx)
+void hal5_usb_device_in_stage_completed_ex(
+        hal5_usb_endpoint_t* ep)
 {
 }

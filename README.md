@@ -134,6 +134,10 @@ Control read requests:
 
 are implemented with complete parameter and state checks according to USB 2.0 spec.
 
+## USB Compliance
+
+The code with the example USB device implementation in the repository passes USB3CV Chapter 9 Tests - USB 2. The test is performed on Windows 11 with a Renesas UPD720201 XHCI controller ([Delock 89363](https://www.delock.com/produkt/89363/merkmale.html?setLanguage=en)).
+
 ## USB Transaction vs. Pipe
 
 Since a SETUP transaction is always 3 packets (SETUP, DATA0, ACK) and DATA0 payload is always 8 bytes, SETUP transaction is always processed as it is by the default control endpoint / endpoint 0. Since this works outside of USB device implementation, it is not very important for the user.

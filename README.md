@@ -72,33 +72,31 @@ Peripheral routines are not runtime configurable in the sense that I2C support c
 
 # USB Support
 
-USB Host mode is not yet supported.
+USB Host mode is not supported.
 
 USB Device mode is supported as follows.
 
-## USB Device Mode
+## Descriptors
 
-### Descriptors
-
-Descriptors are defined in python in `descriptors.py` file. This is a human-friendly form, because:
+Descriptors are defined in python, in `descriptors.py` file. This is a human-friendly form, because:
 
 - fields like `bLength` is calculated automatically
 - bit fields like `self-powered` attribute is specified as a boolean value
 - additional attributes like `append-version` can be given
 
-Most of the fields have similar names to USB descriptor fields. For an example and documentation, check `descriptors.py` in the repository. Optional USB descriptors that depend on other fields (such as endpoint transfer type) are checked and expected to be explicitly given or not-given, no defaults assumed to prevent errors.
+Most of the fields have similar names to USB descriptor fields. For an example and documentation, check `descriptors.py` in the repository. Optional USB descriptors that depend on other fields (such as endpoint transfer type) are checked and expected to be explicitly provided or not provided, no defaults assumed to prevent errors.
 
 String descriptors are automatically created if given in `descriptors.py`, they are not explicitly created. Only supported language is US English (0x0409), this is defined implicitly in HAL5. However, Unicode can be used in provided strings, they are encoded properly as UTF-16 in generated string descriptors.
 
 During a build, `descriptor.py` is used by `create_descriptor.py` to generate a C source file (`hal5_usb_device_descriptors.c`) which is compiled together with the application. The descriptors are created and initialized in this C source file.
 
-#### Append Version to Product String
+### Append Version to Product String
 
 All fields in `descriptor.py` are used as it is except the product string value if it is not `None` and `append_version` is `True`. In this case, the return values of `hal5_usb_device_version_major_ex() and _minor_ex()` are used to create a product name like `<product>_vXX.YY`. XX and YY can be between 0 and 99, and they are shown as single digit (not 0 left-padded) if they are less than 10. I have seen this in a few devices that makes it possible to observe the firmware version without any extra tool since Device Manager in Windows, System Report in macOS, or `lsusb` in Linux shows the product string.
 
-### Endpoint 0 / Default Control Pipe
+## Endpoint 0 / Default Control Pipe
 
-Endpoint 0, thus default control pipe, is abstracted and implemented by `hal5_usb_device_ep0.c`. For a USB 2.0 FS device enumeration completes successfully.
+Endpoint 0, thus default control pipe, is abstracted and implemented by `hal5_usb_device_ep0.c`. USB 2.0 FS device enumeration completes successfully.
 
 #### Default Control Pipe Status
 
@@ -136,7 +134,15 @@ Control read requests:
 
 are implemented with complete parameter and state checks according to USB 2.0 spec.
 
-### USB Device
+## USB Transaction vs. Pipe
+
+Since a SETUP transaction is always 3 packets (SETUP, DATA0, ACK) and DATA0 payload is always 8 bytes, SETUP transaction is always processed as it is by the default control endpoint / endpoint 0. Since this works outside of USB device implementation, it is not very important for the user.
+
+OUT and IN transactions can be two (DATA0/1, ACK) or multiples of these two packages, until a DATA0/1 payload with less than max packet size arrives. In effect, the data that is sent or received is the combination of all the payloads. This combination is done automatically, so IN and OUT transactions are not sent to the device implementation as it is but as `_in_stage_completed` and `_out_stage_completed` callbacks. The device implementation can read the combined data from the endpoint structure easily.
+
+This implementation might not be ideal for some cases.
+
+## USB Device
 
 A device implementation should only provide descriptors and implement a few functions given in `hal5_usb_device.h` with `_ex` suffix.
 

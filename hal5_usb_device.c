@@ -116,13 +116,13 @@ void hal5_usb_device_set_address(uint8_t address)
     //  and use the new address
     //
     assert ((usb_device_state == usb_device_state_default) ||
-            (usb_device_state == usb_device_state_addressed));
+            (usb_device_state == usb_device_state_address));
 
     USB_DRD_FS->DADDR = 0x80 | address;
 
     if (address != 0)
     {
-        usb_device_state = usb_device_state_addressed;
+        usb_device_state = usb_device_state_address;
     }
     else
     {
@@ -132,7 +132,7 @@ void hal5_usb_device_set_address(uint8_t address)
 
 uint8_t hal5_usb_device_get_configuration_value()
 {
-    assert ((usb_device_state == usb_device_state_addressed) ||
+    assert ((usb_device_state == usb_device_state_address) ||
             (usb_device_state == usb_device_state_configured));
 
     switch (usb_device_state)
@@ -141,7 +141,7 @@ uint8_t hal5_usb_device_get_configuration_value()
             assert (usb_device_configuration_value > 0);
             return usb_device_configuration_value;
 
-        case usb_device_state_addressed:
+        case usb_device_state_address:
             return 0;
 
         default:
@@ -172,7 +172,7 @@ static bool hal5_usb_device_try_changing_configuration(uint8_t configuration_val
 
 bool hal5_usb_device_set_configuration_value(uint8_t configuration_value)
 {
-    assert ((usb_device_state == usb_device_state_addressed) ||
+    assert ((usb_device_state == usb_device_state_address) ||
             (usb_device_state == usb_device_state_configured));
 
     if (usb_device_state == usb_device_state_configured)
@@ -188,11 +188,11 @@ bool hal5_usb_device_set_configuration_value(uint8_t configuration_value)
             // change back to address state
             hal5_usb_device_set_configuration_ex(0);
             usb_device_configuration_value = 0;
-            usb_device_state = usb_device_state_addressed;
+            usb_device_state = usb_device_state_address;
             return true;
         }
     }
-    else if (usb_device_state == usb_device_state_addressed)
+    else if (usb_device_state == usb_device_state_address)
     {
         if (configuration_value != 0)
         {
@@ -329,7 +329,7 @@ static void hal5_usb_device_transaction_completed(
         // is it SETUP or OUT ?
         if (ep->chep->setup) 
         {
-            CONSOLE("SETUP (%u)\n", ep->rx_received);
+            //CONSOLE("SETUP (%u)\n", ep->rx_received);
 
             // setup transaction always has 8 bytes of DATA0
             assert (ep->rx_received == 8);
@@ -465,7 +465,7 @@ static void hal5_usb_device_bus_reset(void)
         case usb_device_state_default: 
             break;
 
-        case usb_device_state_addressed:
+        case usb_device_state_address:
         case usb_device_state_configured:
             // after the first enumeration
             // windows start a second enumeration with a bus reset
@@ -557,14 +557,33 @@ void USB_DRD_FS_IRQHandler(void)
         hal5_usb_ep_sync_from_reg(ep);
         CONSOLE("\n<<<<<<\n");
 
+        switch (hal5_usb_device_get_state())
+        {
+            case usb_device_state_configured:
+                CONSOLE("configured\n");
+                break;
+
+            case usb_device_state_address:
+                CONSOLE("address\n");
+                break;
+
+            case usb_device_state_default:
+                CONSOLE("default\n");
+                break;
+        }
+
         if (dir_out)
         {
+            CONSOLE("(out, %u, %u)\n", 
+                    ep->rxbd->count,
+                    ep->rx_received);
             uint32_t rx_count = hal5_usb_device_copy_from_endpoint(ep);
             ep->rx_received += rx_count;
             hal5_usb_device_transaction_completed(ep);
         }
         else // dir_in
         {
+            CONSOLE("(in, %u)\n", ep->txbd->count);
             ep->tx_sent += ep->txbd->count;
             hal5_usb_device_transaction_completed(ep);
         }
@@ -578,12 +597,13 @@ void USB_DRD_FS_IRQHandler(void)
                     ep->tx_data_size);
             if (ep->tx_expected_valid) CONSOLE("%u)", ep->tx_expected);
             else CONSOLE(".)");
-            CONSOLE("\n");
 
             uint32_t tx_count = hal5_usb_device_copy_to_endpoint(ep);
+
+            CONSOLE(" %lu\n", tx_count);
         }
 
-        hal5_usb_ep_dump_status(ep);
+        //hal5_usb_ep_dump_status(ep);
         CONSOLE(">>>>>>\n");
         hal5_usb_ep_sync_to_reg(ep);
     } 

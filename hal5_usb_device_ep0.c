@@ -87,6 +87,8 @@ void standard_request_completed(
 {
     standard_request = standard_request_null;
 
+    hal5_usb_ep_clear_data(ep);
+
     hal5_usb_ep_set_status(
             ep,
             ep_status_valid,
@@ -196,6 +198,8 @@ static void setup_transaction_reply_in_with_zero(
 static void setup_transaction_stall(
         hal5_usb_endpoint_t* ep)
 {
+    hal5_usb_ep_clear_data(ep);
+
     hal5_usb_ep_set_status(
             ep,
             ep_status_valid,
@@ -216,7 +220,7 @@ static void device_get_status(
     switch (hal5_usb_device_get_state())
     {
         case usb_device_state_configured: 
-        case usb_device_state_addressed: 
+        case usb_device_state_address: 
             break;
         default: assert (false);
     }
@@ -251,7 +255,7 @@ static void device_clear_feature(
     switch (hal5_usb_device_get_state())
     {
         case usb_device_state_configured: 
-        case usb_device_state_addressed: 
+        case usb_device_state_address: 
             break;
         default: assert (false);
     }
@@ -289,7 +293,7 @@ static void device_set_feature(
     switch (hal5_usb_device_get_state())
     {
         case usb_device_state_configured: 
-        case usb_device_state_addressed: 
+        case usb_device_state_address: 
             break;
 
         // 9.4.9 Set Feature
@@ -334,7 +338,7 @@ static void device_set_address(
     switch (hal5_usb_device_get_state())
     {
         case usb_device_state_default: 
-        case usb_device_state_addressed: 
+        case usb_device_state_address: 
             break;
 
         default: assert (false);
@@ -378,8 +382,7 @@ static void device_get_descriptor(
                 // (waits until all data is sent)
                 uint8_t len = dd->bLength;
 
-                if (hal5_usb_device_get_state() == 
-                        usb_device_state_default)
+                if (ep->mps < len)
                 {
                     len = ep->mps;
                 }
@@ -531,10 +534,17 @@ static void device_get_descriptor(
                 //   receives this request, 
                 //   it must respond with a request error.
                 // RequestError=stall
+                setup_transaction_stall(ep);
             }
-            // device qualifier descriptor is handled 
-            // as same as any other unknown descriptors
-            // by returning a stall
+            break;
+
+        case 0x0F:
+            {
+                // BOS
+                setup_transaction_stall(ep);
+            }
+            break; 
+
         default:
             {
                 setup_transaction_stall(ep);
@@ -566,7 +576,7 @@ static void device_get_configuration(
         case usb_device_state_configured:
             break;
 
-        case usb_device_state_addressed:
+        case usb_device_state_address:
             break;
 
         default: assert (false);
@@ -596,7 +606,7 @@ static void device_set_configuration(
         case usb_device_state_configured:
             break;
 
-        case usb_device_state_addressed:
+        case usb_device_state_address:
             break;
 
         default: assert (false);
@@ -625,7 +635,7 @@ static void interface_get_status(
         case usb_device_state_configured: 
             break;
 
-        case usb_device_state_addressed: 
+        case usb_device_state_address: 
             if (WINDEX_AS_INTERFACE_NUMBER(ep) != 0)
             {
                 setup_transaction_stall(ep);
@@ -656,7 +666,7 @@ static void interface_clear_feature(
     switch (hal5_usb_device_get_state())
     {
         case usb_device_state_configured:
-        case usb_device_state_addressed:
+        case usb_device_state_address:
             break;
 
         default: assert (false);
@@ -677,7 +687,7 @@ static void interface_set_feature(
     switch (hal5_usb_device_get_state())
     {
         case usb_device_state_configured:
-        case usb_device_state_addressed:
+        case usb_device_state_address:
             break;
 
         default: assert (false);
@@ -702,7 +712,7 @@ static void interface_get_interface(
         case usb_device_state_configured: 
             break;
 
-        case usb_device_state_addressed: 
+        case usb_device_state_address: 
             setup_transaction_stall(ep);
             return;
 
@@ -742,7 +752,7 @@ static void interface_set_interface(
         case usb_device_state_configured:
             break;
 
-        case usb_device_state_addressed:
+        case usb_device_state_address:
             setup_transaction_stall(ep);
             return;
 
@@ -773,7 +783,7 @@ static void endpoint_get_status(
         case usb_device_state_configured: 
             break;
 
-        case usb_device_state_addressed: 
+        case usb_device_state_address: 
             if (WINDEX_AS_ENDPOINT_NUMBER(ep) != 0)
             {
                 setup_transaction_stall(ep);
@@ -820,7 +830,7 @@ static void endpoint_clear_feature(
         case usb_device_state_configured:
             break;
 
-        case usb_device_state_addressed:
+        case usb_device_state_address:
             if (WINDEX_AS_ENDPOINT_NUMBER(ep) != 0) 
             {
                 setup_transaction_stall(ep);
@@ -861,7 +871,7 @@ static void endpoint_set_feature(
         case usb_device_state_configured:
             break;
 
-        case usb_device_state_addressed:
+        case usb_device_state_address:
             if (WINDEX_AS_ENDPOINT_NUMBER(ep) != 0) 
             {
                 setup_transaction_stall(ep);
@@ -901,7 +911,7 @@ static void endpoint_synch_frame(
         case usb_device_state_configured: 
             break;
 
-        case usb_device_state_addressed: 
+        case usb_device_state_address: 
             setup_transaction_stall(ep);
             return;
 
@@ -941,6 +951,7 @@ static const char* bRequestLabels[] =
     "GET_INTERFACE",
     "SET_INTERFACE",
     "SYNCH_FRAME",
+    // there are more following this in USB 3
 };
 
 static const char* bmRequestTypeRecipientLabels[] =
@@ -961,7 +972,13 @@ static const char* wValueDescriptorTypes[] =
     "Endpoint",
     "Device_Qualifier",
     "Other_Speed_Configuration",
-    "Interface_Power"
+    "Interface_Power",
+    "OTG",
+    "Debug",
+    "Interface_Association", // 11
+    "", "", "", // 12-14 reserved
+    "BOS", // 15
+    "Device_Capability"
 };
 
 void hal5_usb_device_setup_transaction_completed_ep0(

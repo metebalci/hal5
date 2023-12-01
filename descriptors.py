@@ -41,7 +41,7 @@ descriptors = {
     # for USB LS, it should be 8
     # for USB FS, it can be any of 8,16,32 or 64
     # for USB HS, it should be 64
-    'max-packet-size-ep0':  8,
+    'max-packet-size-ep0':  64,
 
     # (idVendor, idProduct)
     'ids':              (0x1209, 0x0001),

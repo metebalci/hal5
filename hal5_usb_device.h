@@ -38,7 +38,7 @@ extern const bool hal5_usb_product_string_append_version __WEAK;
 typedef enum 
 {
     usb_device_state_default,
-    usb_device_state_addressed,
+    usb_device_state_address,
     usb_device_state_configured,
 } hal5_usb_device_state_t;
 

@@ -290,6 +290,8 @@ hal5_usb_endpoint_t* hal5_usb_ep_create(
         ep->rx_data = NULL;
     }
 
+    ep->rx_received = 0;
+
     if ((utype == ep_utype_control) || !ep->dir_in)
     {
         ep->tx_data = (uint8_t*) malloc(1024);
@@ -299,6 +301,10 @@ hal5_usb_endpoint_t* hal5_usb_ep_create(
     {
         ep->tx_data = NULL;
     }
+
+    ep->tx_sent             = 0;
+    ep->tx_expected_valid   = false;
+    ep->tx_expected         = 0;
 
     ep->chep_reg = (hal5_usb_chep_t*) (USB_DRD_BASE + 4*ep->endp);
     ep->chep_reg->ea = ep->endp;
@@ -413,6 +419,17 @@ size_t hal5_usb_device_copy_to_endpoint(
 {
     size_t tx_count = ep->tx_data_size - ep->tx_sent;
 
+    // if expected is set
+    // then maximum tx_expected amount should be sent
+    if (ep->tx_expected_valid)
+    {
+        if (ep->tx_expected < ep->tx_data_size)
+        {
+            tx_count = ep->tx_expected - ep->tx_sent;
+        }
+    }
+
+    // cannot pass max packet size
     if (tx_count > ep->mps)
     {
         tx_count = ep->mps;
@@ -484,6 +501,8 @@ void hal5_usb_ep_prepare_for_in(
         const bool tx_expected_valid,
         const size_t tx_expected)
 {
+    hal5_usb_ep_clear_data(ep);
+
     if (data != NULL)
     {
         memcpy(
@@ -505,5 +524,7 @@ void hal5_usb_ep_prepare_for_out(
         hal5_usb_endpoint_t* ep,
         usb_ep_status_t tx_status)
 {
+    hal5_usb_ep_clear_data(ep);
+
     hal5_usb_ep_set_status(ep, ep_status_valid, tx_status);
 }

@@ -229,12 +229,12 @@ static void device_get_status(
 
     if (hal5_usb_device_is_device_self_powered_ex()) 
     {
-        status[1] |= (1 << 0);
+        status[0] |= (1 << 0);
     }
 
     if (hal5_usb_device_is_device_remote_wakeup_set_ex()) 
     {
-        status[1] |= (1 << 1);
+        status[0] |= (1 << 1);
     }
 
     setup_transaction_reply_in(

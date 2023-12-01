@@ -81,6 +81,8 @@ configuration0 = {
     # bMaxPower but specified in mA
     # actual value used in the descriptor is half of the value here
     # since USB descriptor is in 2mA units
+    # 0 can be specified for self powered devices
+    # then get_status should always report self powered
     'max-power-ma':     0,
 
     # interfaces of this configuration

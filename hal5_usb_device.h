@@ -67,6 +67,8 @@ void hal5_usb_device_out_stage_completed_ep0(
 void hal5_usb_device_in_stage_completed_ep0(
         hal5_usb_endpoint_t *ep);
 
+usb_standard_request_t hal5_usb_device_ep0_get_standard_request();
+
 // _ex functions
 // must be provided by device implementations
 // see example_usb_device.c as an example

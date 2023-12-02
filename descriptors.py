@@ -164,6 +164,25 @@ interface1 = {
     ]
 }
 
+# this function sets the mps to particular value
+# and then sets the string descriptors to some mps related
+# values so the transfers can be tested
+def testmps(mps):
+    def genstr(packet_size):
+        assert (packet_size % 2 == 0)
+        strlen = packet_size - 2
+        strlenx = strlen >> 1
+        return ' ' * strlenx
+
+    mps = 64
+    descriptors['max-packet-size-ep0'] = mps
+    descriptors['append_version'] = False
+    descriptors['manufacturer'] = genstr(mps - 2)
+    descriptors['product'] = genstr(mps)
+    descriptors['serial'] = genstr(mps + 2)
+    configuration0['label'] = genstr(mps * 2)
+    interface0['label'] = genstr(mps * 2 + 2)
+
 descriptors['configurations'].append(configuration0)
 configuration0['interfaces'].append(interface0)
 #configuration0['interfaces'].append(interface1)

@@ -18,6 +18,17 @@
  * limitations under the License.
  */
 
+// This file implements default control pipe (endpoint 0) functionality.
+// In this pipeline, there can also be other application data transfers.
+// The default control pipe transfers use standard requests and
+//   always start with a SETUP packet.
+// So a SETUP_transaction_completed triggers the functionality in this file.
+// The default control pipe does not use ZLP (zero length packages) to
+//   terminate the data transfers, instead SETUP always specify
+//   wLength indicating the length (for OUT) or maximum length (for IN)
+//   of data transfers which might be splitted into multiple packets
+//   depending on maximum packet size, it does not use ZLP.
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -52,31 +63,14 @@ static const hal5_usb_string_descriptor_t microsoft_os_string_descriptor =
     {0x4D, 0x00, 0x53, 0x00, 0x46, 0x00, 0x54, 0x00, 0x31, 0x00, 0x31, 0x00, 0x30, 0x00, 0x11, 0x00}
 };
 
-typedef enum
-{
-    standard_request_null,
-    standard_request_device_get_status,
-    standard_request_device_clear_feature,
-    standard_request_device_set_feature,
-    standard_request_device_set_address,
-    standard_request_device_get_descriptor,
-    standard_request_device_set_descriptor,
-    standard_request_device_get_configuration,
-    standard_request_device_set_configuration,
-    standard_request_interface_get_status,
-    standard_request_interface_clear_feature,
-    standard_request_interface_set_feature,
-    standard_request_interface_get_interface,
-    standard_request_interface_set_interface,
-    standard_request_endpoint_get_status,
-    standard_request_endpoint_clear_feature,
-    standard_request_endpoint_set_feature,
-    standard_request_endpoint_synch_frame,
-} usb_standard_request_t;
-
 // used for temporarily storing current standard request in processing
 // stored at SETUP, used in following IN and/or OUT transactions
 static usb_standard_request_t standard_request = standard_request_null;
+
+usb_standard_request_t hal5_usb_device_ep0_get_standard_request()
+{
+    return standard_request;
+}
 
 // this is called when a standard request is finished
 // it can be any type of standard request
@@ -150,8 +144,7 @@ static void initialize_product_string_version()
 static void setup_transaction_reply_in(
         hal5_usb_endpoint_t* ep,
         const void* data, 
-        const size_t len,
-        const size_t expected)
+        const size_t len)
 {   
     hal5_usb_ep_prepare_for_in(
             ep,
@@ -159,7 +152,7 @@ static void setup_transaction_reply_in(
             data,
             len,
             true,
-            expected);
+            ep->device_request->wLength);
 }
 
 // SETUP IN_DATA OUT_0 e.g. get_descriptor
@@ -182,8 +175,8 @@ static void setup_transaction_reply_in_with_zero(
             ep_status_stall,
             NULL,
             0,
-            false,
-            0);
+            true,
+            ep->device_request->wLength);
 }
 
 // USB 2.0 9.2.7 Request Error
@@ -240,8 +233,7 @@ static void device_get_status(
     setup_transaction_reply_in(
             ep, 
             status, 
-            2,
-            ep->device_request->wLength);
+            2);
 }
 
 static void device_clear_feature(
@@ -380,18 +372,13 @@ static void device_get_descriptor(
                 // so the code in hal5_usb_device runs as expected
                 // for all other requests host behaves as expected 
                 // (waits until all data is sent)
-                uint8_t len = dd->bLength;
-
-                if (ep->mps < len)
-                {
-                    len = ep->mps;
-                }
 
                 setup_transaction_reply_in(
                         ep, 
                         dd, 
-                        len,
-                        ep->device_request->wLength);
+                        HAL5_MIN(
+                            dd->bLength,
+                            ep->device_request->wLength));
             }
             break;
 
@@ -458,8 +445,9 @@ static void device_get_descriptor(
                     setup_transaction_reply_in(
                                 ep,
                                 tmp,
-                                cd->wTotalLength,
-                                ep->device_request->wLength);
+                                HAL5_MIN(
+                                    cd->wTotalLength,
+                                    ep->device_request->wLength));
                 }
                 else
                 {
@@ -484,8 +472,9 @@ static void device_get_descriptor(
                     setup_transaction_reply_in(
                             ep,
                             &microsoft_os_string_descriptor,
-                            microsoft_os_string_descriptor.bLength,
-                            ep->device_request->wLength);
+                            HAL5_MIN(
+                                microsoft_os_string_descriptor.bLength,
+                                ep->device_request->wLength));
                 }
                 else if (string_descriptor_index < hal5_usb_number_of_string_descriptors)
                 {
@@ -516,8 +505,9 @@ static void device_get_descriptor(
                     setup_transaction_reply_in(
                             ep,
                             sd,
-                            sd->bLength,
-                            ep->device_request->wLength);
+                            HAL5_MIN(
+                                sd->bLength,
+                                ep->device_request->wLength));
                 }
                 else
                 {
@@ -587,8 +577,7 @@ static void device_get_configuration(
     setup_transaction_reply_in(
             ep, 
             &configuration_value, 
-            1,
-            ep->device_request->wLength);
+            1);
 }
 
 static void device_set_configuration(
@@ -652,8 +641,7 @@ static void interface_get_status(
     setup_transaction_reply_in(
             ep, 
             status, 
-            2,
-            ep->device_request->wLength);
+            2);
 }
 
 static void interface_clear_feature(
@@ -730,8 +718,7 @@ static void interface_get_interface(
         setup_transaction_reply_in(
                 ep, 
                 &alternate_setting, 
-                1,
-                ep->device_request->wLength);
+                1);
     }
     else setup_transaction_stall(ep);
 }
@@ -805,12 +792,15 @@ static void endpoint_get_status(
 
     if (success)
     {
-        if (is_halt_set) status[1] |= (1 << 0);
+        if (is_halt_set) 
+        {
+            status[1] |= (1 << 0);
+        }
+
         setup_transaction_reply_in(
                 ep, 
                 status, 
-                2,
-                ep->device_request->wLength);
+                2);
     }
     else
     {
@@ -930,55 +920,67 @@ static void endpoint_synch_frame(
         setup_transaction_reply_in(
                 ep, 
                 &frame_number, 
-                2,
-                ep->device_request->wLength);
+                2);
     }
     else setup_transaction_stall(ep);
 } 
 
-static const char* bRequestLabels[] =
+// the labels are implemented like this instead of array
+// to be able to return a default value
+// to be able to return a non-contiguous value
+static const char* bRequestLabel(uint8_t bRequest)
 {
-    "GET_STATUS",
-    "CLEAR_FEATURE",
-    "reserved",
-    "SET_FEATURE",
-    "reserved",
-    "SET_ADDRESS",
-    "GET_DESCRIPTOR",
-    "SET_DESCRIPTOR",
-    "GET_CONFIGURATION",
-    "SET_CONFIGURATION",
-    "GET_INTERFACE",
-    "SET_INTERFACE",
-    "SYNCH_FRAME",
-    // there are more following this in USB 3
-};
+    switch (bRequest)
+    {
+        case 0: return "GET_STATUS";
+        case 1: return "CLEAR_FEATURE";
+        case 3: return "SET_FEATURE";
+        case 5: return "SET_ADDRESS";
+        case 6: return "GET_DESCRIPTOR";
+        case 7: return "SET_DESCRIPTOR";
+        case 8: return "GET_CONFIGURATION";
+        case 9: return "SET_CONFIGURATION";
+        case 10: return "GET_INTERFACE";
+        case 11: return "SET_INTERFACE";
+        case 12: return "SYNCH_FRAME";
+        default: 
+                 return "reserved";
+    }
+}
 
-static const char* bmRequestTypeRecipientLabels[] =
+static const char* bmRequestTypeRecipientLabel(uint8_t bmRequestType)
 {
-    "Device",
-    "Interface",
-    "Endpoint",
-    "Other"
-};
+    switch (bmRequestType & 0x1F)
+    {
+        case 0: return "Device";
+        case 1: return "Interface";
+        case 2: return "Endpoint";
+        default:
+                return "Other";
+    }
+}
 
-static const char* wValueDescriptorTypes[] =
+static const char* wValueDescriptorTypeLabel(uint16_t wValue)
 {
-    "",
-    "Device",
-    "Configuration",
-    "String",
-    "Interface",
-    "Endpoint",
-    "Device_Qualifier",
-    "Other_Speed_Configuration",
-    "Interface_Power",
-    "OTG",
-    "Debug",
-    "Interface_Association", // 11
-    "", "", "", // 12-14 reserved
-    "BOS", // 15
-    "Device_Capability"
+    switch (wValue >> 8)
+    {
+        case 1: return "Device";
+        case 2: return "Configuration";
+        case 3: return "String";
+        case 4: return "Interface";
+        case 5: return "Endpoint";
+        case 6: return "Device_Qualifier";
+        case 7: return "Other_Speed_Configuration";
+        // below are taken from USB 3 spec 
+        case 8: return "Interface_Power";
+        case 9: return "OTG";
+        case 10: return "Debug";
+        case 11: return "Interface_Association";
+        case 15: return "BOS";
+        case 16: return "Device_Capability";
+        default:
+                 return "reserved";
+    }
 };
 
 void hal5_usb_device_setup_transaction_completed_ep0(
@@ -997,16 +999,16 @@ void hal5_usb_device_setup_transaction_completed_ep0(
 
     // log the request type and recipient
     CONSOLE("%s.%s",
-            bRequestLabels[
-                ep->device_request->bRequest],
-            bmRequestTypeRecipientLabels[
-                ep->device_request->bmRequestType & 0x1F]);
+            bRequestLabel(ep->device_request->bRequest),
+            bmRequestTypeRecipientLabel(
+                ep->device_request->bmRequestType));
 
     // log GET_DESCRIPTOR parameters
     if (ep->device_request->bRequest == 0x06)
     {
         CONSOLE(".%s (%u)\n",
-                wValueDescriptorTypes[ep->device_request->wValue >> 8],
+                wValueDescriptorTypeLabel(
+                    ep->device_request->wValue),
                 ep->device_request->wValue & 0xFF);
     }
     // log SET_ADDRESS parameters

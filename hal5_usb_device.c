@@ -256,6 +256,9 @@ static void hal5_usb_device_reset(void)
 {
     CONSOLE("usb device reset\n");
 
+    // probably not needed but clear the USB memory anyway
+    memset(USB_SRAM, 0, 2048);
+
     //mcu_usb_print_registers();
     
     // device address is set to 0 here
@@ -307,6 +310,126 @@ static void hal5_usb_device_reset(void)
 
 }
 
+static void usb_device_setup_transaction_completed(
+        hal5_usb_endpoint_t* ep)
+{
+    // setup transaction always has 8 bytes of DATA0
+    assert (ep->rx_received == 8);
+    // there is no need to check if data phase is finished
+    // since minimum of max packet size is 8 bytes
+    ep->device_request = (hal5_usb_device_request_t*) ep->rx_data;
+    hal5_usb_device_setup_transaction_completed_ep0(ep);
+}
+
+static void usb_device_out_transaction_completed(
+        hal5_usb_endpoint_t* ep)
+{
+    if (ep->rxbd->count < ep->mps)
+    {
+        // done
+        // if a less than packet size data arrives
+        // it means data stage is terminated
+
+        if ((ep->endp == 0) &&
+                (hal5_usb_device_ep0_get_standard_request() != 
+                 standard_request_null))
+        {
+            hal5_usb_device_out_stage_completed_ep0(ep);
+        }
+        else
+        {
+            hal5_usb_device_out_stage_completed(ep);
+        }
+    }
+    else
+    {
+        // read more
+        hal5_usb_ep_set_status(
+                ep,
+                ep_status_valid,
+                ep_status_stall);
+    }
+}
+
+static void usb_device_in_transaction_completed(
+        hal5_usb_endpoint_t* ep)
+{
+    enum 
+    {
+        send_more,
+        send_zlp,
+        done,
+    } action;
+
+    if (ep->tx_sent < ep->tx_sent_limit)
+    {
+        action = send_more;
+    }
+    else
+    {
+        // done but maybe ZLP is needed
+
+        if ((ep->tx_sent % ep->mps) == 0)
+        {
+            if (ep->tx_expected_valid)
+            {
+                if (ep->tx_sent < ep->tx_expected)
+                {
+                    action = ep->tx_zlp_sent ? done : send_zlp;
+                }
+                else
+                {
+                    action = done;
+                }
+            }
+            else
+            {
+                action = ep->tx_zlp_sent ? done : send_zlp;
+            }
+        }
+        else
+        {
+            action = done;
+        }
+    }
+
+    switch (action)
+    {
+        case send_more:
+            {
+                CONSOLE("send_more\n");
+                hal5_usb_ep_set_status(
+                        ep,
+                        ep_status_stall,
+                        ep_status_valid);
+            }
+            break;
+
+        case send_zlp:
+            {
+                // this is not different than send_more actually
+                // since no data is left, it sends zero data 
+                // but tx_zlp_sent flag is set below 
+                //   so ZLP is sent only once
+                CONSOLE("send_zlp\n");
+                ep->tx_zlp_sent = true;
+                hal5_usb_ep_set_status(
+                        ep,
+                        ep_status_stall,
+                        ep_status_valid);
+
+            }
+            break;
+
+        case done:
+            {
+                CONSOLE("done\n");
+                hal5_usb_device_in_stage_completed(ep);
+            }
+            break;
+    }
+}
+
 static void hal5_usb_device_transaction_completed(
         hal5_usb_endpoint_t* ep)
 {
@@ -315,51 +438,32 @@ static void hal5_usb_device_transaction_completed(
         // reset so the interrupt is not raised again
         hal5_usb_ep_clear_vtrx(ep);
 
-        // if OUT/SETUP received
-        // clear EP TX state
-        ep->tx_data_size    = 0;
-        ep->tx_sent         = 0;
-
-        ep->tx_expected_valid   = false;
-        ep->tx_expected         = 0;
-
-        // SETUP or OUT transaction is completed, from host to device
-        // this happens when SETUP or OUT is ACKed by the device
+        // SETUP or OUT transaction is completed 
+        // from host to device
+        // completed means ACKed by the device
         
+        if (ep->chep->setup) 
+        {
+            CONSOLE("SETUP");
+        }
+        else
+        {
+            CONSOLE("OUT");
+        }
+        
+        CONSOLE(" (%u, %u, %u)\n", 
+                ep->mps,
+                ep->rxbd->count,
+                ep->rx_received);
+
         // is it SETUP or OUT ?
         if (ep->chep->setup) 
         {
-            //CONSOLE("SETUP (%u)\n", ep->rx_received);
-
-            // setup transaction always has 8 bytes of DATA0
-            assert (ep->rx_received == 8);
-            // there is no need to check if data phase is finished
-            // since minimum of max packet size is 8 bytes
-            ep->device_request = (hal5_usb_device_request_t*) ep->rx_data;
-            hal5_usb_device_setup_transaction_completed_ep0(ep);
-        } 
+            usb_device_setup_transaction_completed(ep);
+        }
         else
         {
-            CONSOLE("OUT (%u, %u, %u)\n", 
-                    ep->mps,
-                    ep->rxbd->count,
-                    ep->rx_received);
-
-            if (ep->rxbd->count < ep->mps)
-            {
-                // done
-                // if a less than packet size data arrives
-                // it means data stage is terminated
-                hal5_usb_device_out_stage_completed(ep);
-            }
-            else
-            {
-                // read more
-                hal5_usb_ep_set_status(
-                        ep,
-                        ep_status_valid,
-                        ep_status_stall);
-            }
+            usb_device_out_transaction_completed(ep);
         }
     }
     else if (ep->chep->vttx) 
@@ -367,83 +471,20 @@ static void hal5_usb_device_transaction_completed(
         // reset so the interrupt is not raised again
         hal5_usb_ep_clear_vttx(ep);
 
-        // if IN received
-        // clear EP RX state
-        ep->rx_received = 0;
-
-        CONSOLE("IN (%u, %u, %u/%u-", 
+        CONSOLE("IN (%u, %u, %u/%u)\n", 
                 ep->mps,
                 ep->txbd->count,
                 ep->tx_sent,
-                ep->tx_data_size);
+                ep->tx_sent_limit);
 
-        if (ep->tx_expected_valid) CONSOLE("%u)", ep->tx_expected);
-        else CONSOLE(".)");
-        CONSOLE("\n");
-
-        // if there is still something to send
-        // and if expected, there is still till expected
-        if ((ep->tx_sent < ep->tx_data_size) &&
-            ((!ep->tx_expected_valid) ||
-             (ep->tx_sent < ep->tx_expected))) 
-        {
-            // send more
-            
-            if (ep->utype == ep_utype_control)
-            {
-                // this is because ST ref man says
-                // the reverse direction should stall in data stages
-                // but only the last stage should set it to nak
-                if ((ep->tx_sent + ep->mps) > ep->tx_data_size)
-                {
-                    hal5_usb_ep_set_status(
-                            ep,
-                            ep_status_nak,
-                            ep_status_valid);
-                }
-                else
-                {
-                    hal5_usb_ep_set_status(
-                            ep,
-                            ep_status_stall,
-                            ep_status_valid);
-                }
-            }
-            else
-            {
-                hal5_usb_ep_set_status(
-                        ep,
-                        ep_status_nak,
-                        ep_status_valid);
-            }
-        }
-        else
-        {
-            // this is because the first get_descriptor.device
-            // request does not wait or want a IN_0 
-            if ((usb_device_state != usb_device_state_default) &&
-                (ep->txbd->count == ep->mps))
-            {
-                hal5_usb_ep_prepare_for_in(
-                        ep,
-                        ep_status_nak,
-                        NULL,
-                        0,
-                        false,
-                        0);
-            }
-            else
-            {
-                // done
-                hal5_usb_device_in_stage_completed(ep);
-            }
-        }
+        usb_device_in_transaction_completed(ep);
     }
     else
     {
         // SETUP, OUT or IN transaction is not completed, not ACKed
         // so either a NAK or STALL received
-        CONSOLE("usb_transaction_error\n");
+        CONSOLE("usb_transaction_error: 0x%08lX\n", 
+                ep->istr->v);
         assert (false);
     }
 }
@@ -547,15 +588,34 @@ void USB_DRD_FS_IRQHandler(void)
         
         // ISTR CTR bit is read-only
         // no need to clear any bit in ISTR
-
-        const uint8_t idn = (istr & USB_ISTR_IDN_Msk) & 0xF;
-        const bool dir_out = (istr & USB_ISTR_DIR_Msk);
+        
+        const uint8_t idn   = (istr & USB_ISTR_IDN_Msk) & 0xF;
+        const bool dir_out  = (istr & USB_ISTR_DIR_Msk);
 
         hal5_usb_endpoint_t* ep = endpoints[idn][dir_out ? 1 : 0];
         assert (ep != NULL);
 
         hal5_usb_ep_sync_from_reg(ep);
         CONSOLE("\n<<<<<<\n");
+
+        ep->istr->v = istr;
+
+        ep->last_out    = ep->current_out;
+        ep->current_out = dir_out;
+
+        if (ep->current_out != ep->last_out)
+        {
+            CONSOLE("first of kind\n");
+            if (ep->current_out)
+            {
+                ep->rx_received = 0;
+            }
+            else
+            {
+                ep->tx_sent = 0;
+                ep->tx_zlp_sent = false;
+            }
+        }
 
         switch (hal5_usb_device_get_state())
         {
@@ -574,31 +634,38 @@ void USB_DRD_FS_IRQHandler(void)
 
         if (dir_out)
         {
+            uint32_t rx_count = hal5_usb_device_copy_from_endpoint(ep);
+
+            ep->rx_received += rx_count;
+
             CONSOLE("(out, %u, %u)\n", 
                     ep->rxbd->count,
                     ep->rx_received);
-            uint32_t rx_count = hal5_usb_device_copy_from_endpoint(ep);
-            ep->rx_received += rx_count;
-            hal5_usb_device_transaction_completed(ep);
         }
         else // dir_in
         {
-            CONSOLE("(in, %u)\n", ep->txbd->count);
             ep->tx_sent += ep->txbd->count;
-            hal5_usb_device_transaction_completed(ep);
+
+            CONSOLE("(in, %u, %u)\n", 
+                    ep->txbd->count,
+                    ep->tx_sent);
         }
+
+        hal5_usb_device_transaction_completed(ep);
 
         if (ep->tx_status == ep_status_valid)
         {
-            CONSOLE("TX (%u, %u, %u/%u-", 
+            uint32_t tx_count = hal5_usb_device_copy_to_endpoint(ep);
+
+            CONSOLE("TX (%u, %u, %u/%u [%u", 
                     ep->mps,
                     ep->txbd->count,
                     ep->tx_sent,
+                    ep->tx_sent_limit,
                     ep->tx_data_size);
-            if (ep->tx_expected_valid) CONSOLE("%u)", ep->tx_expected);
-            else CONSOLE(".)");
 
-            uint32_t tx_count = hal5_usb_device_copy_to_endpoint(ep);
+            if (ep->tx_expected_valid) CONSOLE(", %u])", ep->tx_expected);
+            else CONSOLE(", .])");
 
             CONSOLE(" %lu\n", tx_count);
         }
@@ -701,5 +768,3 @@ void hal5_usb_device_disconnect(void)
 
     CONSOLE("USB disconnect: holding USBRST\n");
 }
-
-

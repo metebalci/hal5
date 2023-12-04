@@ -84,7 +84,6 @@ cmsis_device_h5:
 	git clone --depth 1 -b v1.1.0 https://github.com/STMicroelectronics/cmsis_device_h5 cmsis_device_h5
 
 hal5.a: $(HAL5_OBJS)
-	echo $(CC)
 	$(AR) rcs $@ $(HAL5_OBJS)
 
 hal5.elf: $(ELF_OBJS) hal5.a

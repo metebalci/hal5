@@ -11,15 +11,13 @@ The only two dependencies of the project are [CMSIS (Arm) 5.9.0](https://github.
 
 The source code in this repository can be divided into four groups:
 
-- hal5 source files: provides hal5 system API and implementation, all files starting with `hal5_`. These are built into a static library named `hal5.a`. There are multiple header files but only `hal5.h` needs to be included by the users. So, if you want to use it, you need `hal5.h` and `hal5.a`.
+- hal5 source files: provides hal5 system API and implementation. All files start with `hal5`. These are built to a static library named `hal5.a`. Only `hal5.h` needs to be included by the users and the program should be linked with `hal5.a`.
 
 - startup file and link script: `startup_stm32h563.c` and `startup.ld`.
 
-- example project: includes `main.c`, `syscalls.c` and `example_usb_device.c`.
+- board support package: `bsp.h` and `bsp_nucleo_h563zi.c` as an example to support NUCLEO-H563ZI with the test project.
 
-- board support package: `bsp.h` and `bsp_nucleo_h563zi.c` as an example to support NUCLEO-H563ZI with the example project.
-
-- helpers to create and use USB descriptors: `create_descriptors.py` is a simple utility to convert descriptors defined in `descriptors.py` to a C source file.
+- test project: includes `main.c` and `syscalls.c`.
 
 # Main Features
 
@@ -32,8 +30,6 @@ The source code in this repository can be divided into four groups:
 - CMSIS SysTick_Config is not used but a System tick (actually two ticks) is implemented, one in millisecond, the other is in second resolution.
 
 - The startup code is C-based, not assembly.
-
-- Provides a clear USB device implementation
 
 ## Console
 
@@ -70,87 +66,7 @@ Core functionality of small number of peripherals are supported.
 
 Peripheral routines are not runtime configurable in the sense that I2C support cannot be changed to I2C1 without re-compiling the library.
 
-# USB Support
-
-USB Host mode is not supported.
-
-USB Device mode is supported as follows.
-
-## Descriptors
-
-Descriptors are defined in python, in `descriptors.py` file. This is a human-friendly form, because:
-
-- fields like `bLength` is calculated automatically
-- bit fields like `self-powered` attribute is specified as a boolean value
-- additional attributes like `append-version` can be given
-
-Most of the fields have similar names to USB descriptor fields. For an example and documentation, check `descriptors.py` in the repository. Optional USB descriptors that depend on other fields (such as endpoint transfer type) are checked and expected to be explicitly provided or not provided, no defaults assumed to prevent errors.
-
-String descriptors are automatically created if given in `descriptors.py`, they are not explicitly created. Only supported language is US English (0x0409), this is defined implicitly in HAL5. However, Unicode can be used in provided strings, they are encoded properly as UTF-16 in generated string descriptors.
-
-During a build, `descriptor.py` is used by `create_descriptor.py` to generate a C source file (`hal5_usb_device_descriptors.c`) which is compiled together with the application. The descriptors are created and initialized in this C source file.
-
-### Append Version to Product String
-
-All fields in `descriptor.py` are used as it is except the product string value if it is not `None` and `append_version` is `True`. In this case, the return values of `hal5_usb_device_version_major_ex() and _minor_ex()` are used to create a product name like `<product>_vXX.YY`. XX and YY can be between 0 and 99, and they are shown as single digit (not 0 left-padded) if they are less than 10. I have seen this in a few devices that makes it possible to observe the firmware version without any extra tool since Device Manager in Windows, System Report in macOS, or `lsusb` in Linux shows the product string.
-
-## Endpoint 0 / Default Control Pipe
-
-Endpoint 0, thus default control pipe, is abstracted and implemented by `hal5_usb_device_ep0.c`. USB 2.0 FS device enumeration completes successfully.
-
-#### Default Control Pipe Status
-
-All (standard) USB device requests (USB 2.0 9.4) are implemented.
-
-No-data device requests:
-
-- `Clear Feature`
-- `Set Feature`
-- `Set Address`
-- `Set Configuration`
-- `Set Interface`
-
-are implemented with complete parameter and state checks according to USB 2.0 spec.
-
-All features in USB 2.0 (`Endpoint Halt`, `Device Remote Wakeup`, `Test Mode`) is passed to the USB device implementation. Test mode is not implemented.
-
-`Set Address` and `Set Configuration` correctly handles state changes to/from address and from/to configured depending on the current state, the value of device address and configuration value.
-
-`Set Interface` is passed to the USB device implementation.
-
-Control write request:
-
-- `Set Descriptor` 
-
-is optional and it is implemented as always returning a Request Error (STALL). Thus, it cannot be used by a USB Device.
-
-Control read requests:
-
-- `Get Status`
-- `Get Descriptor`
-- `Get Configuration`
-- `Get Interface`
-- `Synch Frame`
-
-are implemented with complete parameter and state checks according to USB 2.0 spec.
-
-## USB Compliance
-
-The code with the example USB device implementation in the repository passes USB3CV Chapter 9 Tests - USB 2. The test is performed on Windows 11 with a Renesas UPD720201 XHCI controller ([Delock 89363](https://www.delock.com/produkt/89363/merkmale.html?setLanguage=en)).
-
-## USB Transaction vs. Pipe
-
-Since a SETUP transaction is always 3 packets (SETUP, DATA0, ACK) and DATA0 payload is always 8 bytes, SETUP transaction is always processed as it is by the default control endpoint / endpoint 0. Since this works outside of USB device implementation, it is not very important for the user.
-
-OUT and IN transactions can be two (DATA0/1, ACK) or multiples of these two packages, until a DATA0/1 payload with less than max packet size arrives. In effect, the data that is sent or received is the combination of all the payloads. This combination is done automatically, so IN and OUT transactions are not sent to the device implementation as it is but as `_in_stage_completed` and `_out_stage_completed` callbacks. The device implementation can read the combined data from the endpoint structure easily.
-
-This implementation might not be ideal for some cases.
-
-## USB Device
-
-A device implementation should only provide descriptors and implement a few functions given in `hal5_usb_device.h` with `_ex` suffix.
-
-An example USB Device is given in `example_usb_device.c`.
+USB support is in another repo: [hal5_usb](https://github.com/metebalci/hal5_usb).
 
 # Build and Test
 
@@ -160,9 +76,9 @@ An example USB Device is given in `example_usb_device.c`.
 
 The project is tested with a [NUCLEO-H563ZI development board](https://www.st.com/en/evaluation-tools/nucleo-h563zi.html).
 
-`make` builds the library (`hal5.a`) and the firmware (`example.elf`) containing the example project. Before building, it downloads (clones) CMSIS 5.9.0 and STM32CubeH5 1.1.0 from github.
+`make` builds the library (`hal5.a`) and the firmware (`test.elf`) containing the test project. Before building, it downloads (clones) CMSIS 5.9.0 and STM32CubeH5 1.1.0 from github.
 
-`make flash` builds the firmware containing the example project and programs the firmware to the MCU using STM32_Programmer_CLI.
+`make flash` builds the firmware containing the test project and programs the firmware to the MCU using STM32_Programmer_CLI.
 
 # References
 

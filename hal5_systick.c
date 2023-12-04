@@ -33,39 +33,46 @@ volatile uint32_t hal5_slow_ticks = 0;
 static volatile uint32_t slowticksdiv = 0;
 static volatile uint32_t tick_timer = 0;
 
-void SysTick_Handler(void)
+static void systick_handler(void)
 {
-  hal5_ticks++;
-  slowticksdiv++;
-  if (slowticksdiv == 1000) {
-    slowticksdiv = 0;
-    hal5_slow_ticks++;
-  }
-  if (tick_timer > 0) tick_timer--;
+    hal5_ticks++;
+    slowticksdiv++;
+    if (slowticksdiv == 1000) {
+        slowticksdiv = 0;
+        hal5_slow_ticks++;
+    }
+    if (tick_timer > 0) tick_timer--;
 }
 
 void hal5_systick_configure()
 {
-  // must change CTRL first to set SysTick clock source 
-  // mcc_get_systick_ck depends on it
-  SysTick->CTRL = 0b111;
+    typedef void (*interrupt_handler)(void);
+    interrupt_handler* vectors = (interrupt_handler*) SCB->VTOR;
+    printf("%p\n", vectors[15]);
+    vectors[15] = systick_handler;
+    __DSB();
+    printf("%p\n", vectors[15]);
 
-  const uint32_t systick_ck = hal5_rcc_get_systick_ck();
+    // must change CTRL first to set SysTick clock source 
+    // mcc_get_systick_ck depends on it
+    SysTick->CTRL = 0b111;
 
-  // make sure an exact systick can be configured
-  assert (systick_ck % 1000 == 0);
-  // make sure an exact slow systick can be configured
-  assert ((systick_ck / 1000) >= 1000);
-  // make sure the reload value fits to 24-bits
-  assert ((systick_ck / 1000) <= 0xFFFFFF);
+    const uint32_t systick_ck = hal5_rcc_get_systick_ck();
 
-  SysTick->LOAD = systick_ck / 1000;
-  SysTick->VAL = 0;
+    // make sure an exact systick can be configured
+    assert (systick_ck % 1000 == 0);
+    // make sure an exact slow systick can be configured
+    assert ((systick_ck / 1000) >= 1000);
+    // make sure the reload value fits to 24-bits
+    assert ((systick_ck / 1000) <= 0xFFFFFF);
+
+    SysTick->LOAD = systick_ck / 1000;
+    SysTick->VAL = 0;
 }
 
 // this is here to not export tick_timer symbol
 void hal5_wait(uint32_t milliseconds)
 {
-  tick_timer = milliseconds;
-  while (tick_timer > 0);
+    tick_timer = milliseconds;
+    while (tick_timer > 0);
 }

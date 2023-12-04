@@ -94,12 +94,14 @@ void hal5_dump_cfsr_info(void)
     }
 }
 
-void hal5_freeze() 
+void hal5_set_vector(
+        uint32_t vector_number,
+        void (*vector)(void))
 {
-    CONSOLE("Program will freeze now keeping iWatchDog alive.\n");
-    CONSOLE("You have to manually reset.\n");
-
-    while (1) hal5_watchdog_heartbeat();
+    typedef void (*interrupt_handler)(void);
+    interrupt_handler* vectors = (interrupt_handler*) SCB->VTOR;
+    vectors[15] = vector;
+    __DSB();
 }
 
 void hal5_change_sys_ck(

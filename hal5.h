@@ -43,6 +43,10 @@ void hal5_change_sys_ck(
 void hal5_change_sys_ck_to_pll1_p(
         const uint32_t target_ck);
 
+void hal5_set_vector(
+        uint32_t vector_number,
+        void (*vector)(void));
+
 // CACHE
 
 void hal5_icache_enable(void);

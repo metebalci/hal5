@@ -202,182 +202,207 @@ typedef void(*VECTOR_TABLE_Type)(void);
 // Cortex-M33 supports 480 external interrupts + 16 internal lines
 //  thus the vector table size is 496
 // __VECTOR_TABLE and __VECTOR_TABLE_ATTRIBUTE are also defined in CMSIS
-extern const VECTOR_TABLE_Type __VECTOR_TABLE[496];
-       const VECTOR_TABLE_Type __VECTOR_TABLE[496] __VECTOR_TABLE_ATTRIBUTE = {
-  (VECTOR_TABLE_Type)(&__INITIAL_SP),       /*     Initial Stack Pointer */
-  Reset_Handler,                            /*     Reset Handler */
-  NMI_Handler,                              /* -14 NMI Handler */
-  HardFault_Handler,                        /* -13 Hard Fault Handler */
-  MemManage_Handler,                        /* -12 MPU Fault Handler */
-  BusFault_Handler,                         /* -11 Bus Fault Handler */
-  UsageFault_Handler,                       /* -10 Usage Fault Handler */
-  SecureFault_Handler,                      /*  -9 Secure Fault Handler */
-  0,                                        /*     Reserved */
-  0,                                        /*     Reserved */
-  0,                                        /*     Reserved */
-  SVC_Handler,                              /*  -5 SVCall Handler */
-  DebugMon_Handler,                         /*  -4 Debug Monitor Handler */
-  0,                                        /*     Reserved */
-  PendSV_Handler,                           /*  -2 PendSV Handler */
-  SysTick_Handler,                          /*  -1 SysTick Handler */
-  // the IRQHandler list below is created from reference manuals
-  // this list is a superset, not all devices support all
-  // starts from position=0 to 133
-  WWDG_IRQHandler,
-  PVD_AVD_IRQHandler,
-  RTC_IRQHandler,
-  RTC_S_IRQHandler,
-  TAMP_IRQHandler,
-  RAMCFG_IRQHandler,
-  FLASH_IRQHandler,
-  FLASH_S_IRQHandler,
-  GTZC_IRQHandler,
-  RCC_IRQHandler,
-  RCC_S_IRQHandler,
-  EXTI0_IRQHandler,
-  EXTI1_IRQHandler,
-  EXTI2_IRQHandler,
-  EXTI3_IRQHandler,
-  EXTI4_IRQHandler,
-  EXTI5_IRQHandler,
-  EXTI6_IRQHandler,
-  EXTI7_IRQHandler,
-  EXTI8_IRQHandler,
-  EXTI9_IRQHandler,
-  EXTI10_IRQHandler,
-  EXTI11_IRQHandler,
-  EXTI12_IRQHandler,
-  EXTI13_IRQHandler,
-  EXTI14_IRQHandler,
-  EXTI15_IRQHandler,
-  GPDMA1_Channel0_IRQHandler,
-  GPDMA1_Channel1_IRQHandler,
-  GPDMA1_Channel2_IRQHandler,
-  GPDMA1_Channel3_IRQHandler,
-  GPDMA1_Channel4_IRQHandler,
-  GPDMA1_Channel5_IRQHandler,
-  GPDMA1_Channel6_IRQHandler,
-  GPDMA1_Channel7_IRQHandler,
-  IWDG_IRQHandler,
-  SAES_IRQHandler,
-  ADC1_IRQHandler,
-  DAC1_IRQHandler,
-  FDCAN1_IT0_IRQHandler,
-  FDCAN1_IT1_IRQHandler,
-  TIM1_BRK_IRQHandler,
-  TIM1_UP_IRQHandler,
-  TIM1_TRG_COM_IRQHandler,
-  TIM1_CC_IRQHandler,
-  TIM2_IRQHandler,
-  TIM3_IRQHandler,
-  TIM4_IRQHandler,
-  TIM5_IRQHandler,
-  TIM6_IRQHandler,
-  TIM7_IRQHandler,
-  I2C1_EV_IRQHandler,
-  I2C1_ER_IRQHandler,
-  I2C2_EV_IRQHandler,
-  I2C2_ER_IRQHandler,
-  SPI1_IRQHandler,
-  SPI2_IRQHandler,
-  SPI3_IRQHandler,
-  USART1_IRQHandler,
-  USART2_IRQHandler,
-  USART3_IRQHandler,
-  UART4_IRQHandler,
-  UART5_IRQHandler,
-  LPUART1_IRQHandler,
-  LPTIM1_IRQHandler,
-  TIM8_BRK_IRQHandler,
-  TIM8_UP_IRQHandler,
-  TIM8_TRG_COM_IRQHandler,
-  TIM8_CC_IRQHandler,
-  ADC2_IRQHandler,
-  LPTIM2_IRQHandler,
-  TIM15_IRQHandler,
-  TIM16_IRQHandler,
-  TIM17_IRQHandler,
-  USB_DRD_FS_IRQHandler,
-  CRS_IRQHandler,
-  UCPD1_IRQHandler,
-  FMC_IRQHandler,
-  OCTOSPI1_IRQHandler,
-  SDMMC1_IRQHandler,
-  I2C3_EV_IRQHandler,
-  I2C3_ER_IRQHandler,
-  SPI4_IRQHandler,
-  SPI5_IRQHandler,
-  SPI6_IRQHandler,
-  USART6_IRQHandler,
-  USART10_IRQHandler,
-  USART11_IRQHandler,
-  SAI1_IRQHandler,
-  SAI2_IRQHandler,
-  GPDMA2_Channel0_IRQHandler,
-  GPDMA2_Channel1_IRQHandler,
-  GPDMA2_Channel2_IRQHandler,
-  GPDMA2_Channel3_IRQHandler,
-  GPDMA2_Channel4_IRQHandler,
-  GPDMA2_Channel5_IRQHandler,
-  GPDMA2_Channel6_IRQHandler,
-  GPDMA2_Channel7_IRQHandler,
-  UART7_IRQHandler,
-  UART8_IRQHandler,
-  UART9_IRQHandler,
-  UART12_IRQHandler,
-  SDMMC2_IRQHandler,
-  FPU_IRQHandler,
-  ICACHE_IRQHandler,
-  DCACHE1_IRQHandler,
-  ETH_IRQHandler,
-  ETH_WKUP_IRQHandler,
-  DCMI_PSSI_IRQHandler,
-  FDCAN2_IT0_IRQHandler,
-  FDCAN2_IT1_IRQHandler,
-  CORDIC_IRQHandler,
-  FMAC_IRQHandler,
-  DTS_IRQHandler,
-  RNG_IRQHandler,
-  OTFDEC1_IRQHandler,
-  AES_IRQHandler,
-  HASH_IRQHandler,
-  PKA_IRQHandler,
-  CEC_IRQHandler,
-  TIM12_IRQHandler,
-  TIM13_IRQHandler,
-  TIM14_IRQHandler,
-  I3C1_EV_IRQHandler,
-  I3C1_ER_IRQHandler,
-  I2C4_EV_IRQHandler,
-  I2C4_ER_IRQHandler,
-  LPTIM3_IRQHandler,
-  LPTIM4_IRQHandler,
-  LPTIM5_IRQHandler,
-  LPTIM6_IRQHandler,
-  I3C2_EV_IRQHandler,
-  I3C2_ER_IRQHandler,
-  COMP_IRQHandler
+extern const VECTOR_TABLE_Type __VECTOR_TABLE[16];
+const VECTOR_TABLE_Type __VECTOR_TABLE[16] __VECTOR_TABLE_ATTRIBUTE = {
+    (VECTOR_TABLE_Type)(&__INITIAL_SP),       /*     Initial Stack Pointer */
+    Reset_Handler,                            /*     Reset Handler */
+    NMI_Handler,                              /* -14 NMI Handler */
+    HardFault_Handler,                        /* -13 Hard Fault Handler */
+    MemManage_Handler,                        /* -12 MPU Fault Handler */
+    BusFault_Handler,                         /* -11 Bus Fault Handler */
+    UsageFault_Handler,                       /* -10 Usage Fault Handler */
+    SecureFault_Handler,                      /*  -9 Secure Fault Handler */
+    0,                                        /*     Reserved */
+    0,                                        /*     Reserved */
+    0,                                        /*     Reserved */
+    SVC_Handler,                              /*  -5 SVCall Handler */
+    DebugMon_Handler,                         /*  -4 Debug Monitor Handler */
+    0,                                        /*     Reserved */
+    PendSV_Handler,                           /*  -2 PendSV Handler */
+    SysTick_Handler,                          /*  -1 SysTick Handler */
+};
+
+VECTOR_TABLE_Type vector_table_in_RAM[496] __attribute__(( aligned(256) )) = {
+    (VECTOR_TABLE_Type)(&__INITIAL_SP),       /*     Initial Stack Pointer */
+    Reset_Handler,                            /*     Reset Handler */
+    NMI_Handler,                              /* -14 NMI Handler */
+    HardFault_Handler,                        /* -13 Hard Fault Handler */
+    MemManage_Handler,                        /* -12 MPU Fault Handler */
+    BusFault_Handler,                         /* -11 Bus Fault Handler */
+    UsageFault_Handler,                       /* -10 Usage Fault Handler */
+    SecureFault_Handler,                      /*  -9 Secure Fault Handler */
+    0,                                        /*     Reserved */
+    0,                                        /*     Reserved */
+    0,                                        /*     Reserved */
+    SVC_Handler,                              /*  -5 SVCall Handler */
+    DebugMon_Handler,                         /*  -4 Debug Monitor Handler */
+    0,                                        /*     Reserved */
+    PendSV_Handler,                           /*  -2 PendSV Handler */
+    SysTick_Handler,                          /*  -1 SysTick Handler */
+    // the IRQHandler list below is created from reference manuals
+    // this list is a superset, not all devices support all
+    // starts from position=0 to 133
+    WWDG_IRQHandler,
+    PVD_AVD_IRQHandler,
+    RTC_IRQHandler,
+    RTC_S_IRQHandler,
+    TAMP_IRQHandler,
+    RAMCFG_IRQHandler,
+    FLASH_IRQHandler,
+    FLASH_S_IRQHandler,
+    GTZC_IRQHandler,
+    RCC_IRQHandler,
+    RCC_S_IRQHandler,
+    EXTI0_IRQHandler,
+    EXTI1_IRQHandler,
+    EXTI2_IRQHandler,
+    EXTI3_IRQHandler,
+    EXTI4_IRQHandler,
+    EXTI5_IRQHandler,
+    EXTI6_IRQHandler,
+    EXTI7_IRQHandler,
+    EXTI8_IRQHandler,
+    EXTI9_IRQHandler,
+    EXTI10_IRQHandler,
+    EXTI11_IRQHandler,
+    EXTI12_IRQHandler,
+    EXTI13_IRQHandler,
+    EXTI14_IRQHandler,
+    EXTI15_IRQHandler,
+    GPDMA1_Channel0_IRQHandler,
+    GPDMA1_Channel1_IRQHandler,
+    GPDMA1_Channel2_IRQHandler,
+    GPDMA1_Channel3_IRQHandler,
+    GPDMA1_Channel4_IRQHandler,
+    GPDMA1_Channel5_IRQHandler,
+    GPDMA1_Channel6_IRQHandler,
+    GPDMA1_Channel7_IRQHandler,
+    IWDG_IRQHandler,
+    SAES_IRQHandler,
+    ADC1_IRQHandler,
+    DAC1_IRQHandler,
+    FDCAN1_IT0_IRQHandler,
+    FDCAN1_IT1_IRQHandler,
+    TIM1_BRK_IRQHandler,
+    TIM1_UP_IRQHandler,
+    TIM1_TRG_COM_IRQHandler,
+    TIM1_CC_IRQHandler,
+    TIM2_IRQHandler,
+    TIM3_IRQHandler,
+    TIM4_IRQHandler,
+    TIM5_IRQHandler,
+    TIM6_IRQHandler,
+    TIM7_IRQHandler,
+    I2C1_EV_IRQHandler,
+    I2C1_ER_IRQHandler,
+    I2C2_EV_IRQHandler,
+    I2C2_ER_IRQHandler,
+    SPI1_IRQHandler,
+    SPI2_IRQHandler,
+    SPI3_IRQHandler,
+    USART1_IRQHandler,
+    USART2_IRQHandler,
+    USART3_IRQHandler,
+    UART4_IRQHandler,
+    UART5_IRQHandler,
+    LPUART1_IRQHandler,
+    LPTIM1_IRQHandler,
+    TIM8_BRK_IRQHandler,
+    TIM8_UP_IRQHandler,
+    TIM8_TRG_COM_IRQHandler,
+    TIM8_CC_IRQHandler,
+    ADC2_IRQHandler,
+    LPTIM2_IRQHandler,
+    TIM15_IRQHandler,
+    TIM16_IRQHandler,
+    TIM17_IRQHandler,
+    USB_DRD_FS_IRQHandler,
+    CRS_IRQHandler,
+    UCPD1_IRQHandler,
+    FMC_IRQHandler,
+    OCTOSPI1_IRQHandler,
+    SDMMC1_IRQHandler,
+    I2C3_EV_IRQHandler,
+    I2C3_ER_IRQHandler,
+    SPI4_IRQHandler,
+    SPI5_IRQHandler,
+    SPI6_IRQHandler,
+    USART6_IRQHandler,
+    USART10_IRQHandler,
+    USART11_IRQHandler,
+    SAI1_IRQHandler,
+    SAI2_IRQHandler,
+    GPDMA2_Channel0_IRQHandler,
+    GPDMA2_Channel1_IRQHandler,
+    GPDMA2_Channel2_IRQHandler,
+    GPDMA2_Channel3_IRQHandler,
+    GPDMA2_Channel4_IRQHandler,
+    GPDMA2_Channel5_IRQHandler,
+    GPDMA2_Channel6_IRQHandler,
+    GPDMA2_Channel7_IRQHandler,
+    UART7_IRQHandler,
+    UART8_IRQHandler,
+    UART9_IRQHandler,
+    UART12_IRQHandler,
+    SDMMC2_IRQHandler,
+    FPU_IRQHandler,
+    ICACHE_IRQHandler,
+    DCACHE1_IRQHandler,
+    ETH_IRQHandler,
+    ETH_WKUP_IRQHandler,
+    DCMI_PSSI_IRQHandler,
+    FDCAN2_IT0_IRQHandler,
+    FDCAN2_IT1_IRQHandler,
+    CORDIC_IRQHandler,
+    FMAC_IRQHandler,
+    DTS_IRQHandler,
+    RNG_IRQHandler,
+    OTFDEC1_IRQHandler,
+    AES_IRQHandler,
+    HASH_IRQHandler,
+    PKA_IRQHandler,
+    CEC_IRQHandler,
+    TIM12_IRQHandler,
+    TIM13_IRQHandler,
+    TIM14_IRQHandler,
+    I3C1_EV_IRQHandler,
+    I3C1_ER_IRQHandler,
+    I2C4_EV_IRQHandler,
+    I2C4_ER_IRQHandler,
+    LPTIM3_IRQHandler,
+    LPTIM4_IRQHandler,
+    LPTIM5_IRQHandler,
+    LPTIM6_IRQHandler,
+    I3C2_EV_IRQHandler,
+    I3C2_ER_IRQHandler,
+    COMP_IRQHandler
 };
 
 __NO_RETURN void Reset_Handler(void)
 {
-  __set_PSP((uint32_t)(&__INITIAL_SP));
+    __set_PSP((uint32_t)(&__INITIAL_SP));
 
-  __set_MSPLIM((uint32_t)(&__STACK_LIMIT));
-  __set_PSPLIM((uint32_t)(&__STACK_LIMIT));
+    __set_MSPLIM((uint32_t)(&__STACK_LIMIT));
+    __set_PSPLIM((uint32_t)(&__STACK_LIMIT));
 
-  // if FPU is present, enable the access
-  #if (__FPU_PRESENT == 1)
+    // if FPU is present, enable the access
+#if (__FPU_PRESENT == 1)
     SCB->CPACR |= ((3UL << 10*2) | (3UL << 11*2));
-  #endif
+#endif
 
-  // disable unaligned access support
-  // unaligned accesses will generate usage fault
-  // quite difficult to use, everything has to be aligned, memcpy etc.
-  // SCB->CCR |= SCB_CCR_UNALIGN_TRP_Msk;
+    // disable unaligned access support
+    // unaligned accesses will generate usage fault
+    // quite difficult to use, everything has to be aligned, memcpy etc.
+    // SCB->CCR |= SCB_CCR_UNALIGN_TRP_Msk;
+    
+    // relocate vectors to RAM
+    __disable_irq();
+    SCB->VTOR = (uint32_t) &vector_table_in_RAM;
+    __DSB();
+    __enable_irq();
 
-  SystemInit();
-  __PROGRAM_START();
+    SystemInit();
+    __PROGRAM_START();
 }
 
 volatile uint32_t stack_pointer = 0;
@@ -398,5 +423,5 @@ void HardFault_Handler(void)
 
 void Default_Handler(void)
 {
-  while (1);
+    while (1);
 }

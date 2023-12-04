@@ -51,6 +51,23 @@ The system core clock (`sys_ck`) can be changed with `hal5_change_sys_ck` which 
 
 The system core clock (`sys_ck`) can be changed to `pll1_p` with `hal5_change_sys_ck_to_pll1_p` with a single target frequency parameter. This will search for a PLL configuration, initialize it, and change `sys_ck` to `pll1_p` (and automatically adjusts flash latency and voltage scaling).
 
+# Test Project
+
+```
+Console is LPUART1. 921600, 8N1.
+Booting...
+Due to CPU reset...
+ICACHE enabled.
+Prefetch enabled.
+PLL config is found: /M=2 xN=30 /P=2.
+PLL1 initialized.
+SYSCLK is now PLL1_P.
+MCO2 shows SYSCLK.
+SYSTICK configured.
+RNG enabled. [9B02FC8D]
+Boot completed.
+```
+
 # Startup and Linker Script
 
 Based on CMSIS C-based startup (`startup_ARMCM33.c`) and linker script (`gnu_arm.ld`), a C-based startup is used.

@@ -117,8 +117,6 @@ void boot(void) {
     srand(seed);
     CONSOLE("RNG enabled. [%08lX]\n", seed);
 
-    hal5_usb_configure();
-
     bsp_boot_completed();
     CONSOLE("Boot completed.\n");
 
@@ -133,8 +131,6 @@ int main(void)
 
     uint32_t last = hal5_slow_ticks;
 
-    hal5_usb_device_connect();
-
     while (1) {
 
         hal5_watchdog_heartbeat();
@@ -148,8 +144,6 @@ int main(void)
 
         char ch;
         if (hal5_console_read(&ch)) {
-            if (ch == 'c') hal5_usb_device_connect();
-            else if (ch == 'd') hal5_usb_device_disconnect();
         }
 
     }

@@ -22,6 +22,7 @@
 #define __MCU_H__
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include <stm32h5xx.h>
 
@@ -52,9 +53,6 @@
 })
 
 #include "hal5_types.h"
-
-#include "hal5_usb.h"
-#include "hal5_usb_device.h"
 
 #ifdef __cplusplus
 extern "C" {

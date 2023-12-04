@@ -46,12 +46,7 @@ static void systick_handler(void)
 
 void hal5_systick_configure()
 {
-    typedef void (*interrupt_handler)(void);
-    interrupt_handler* vectors = (interrupt_handler*) SCB->VTOR;
-    printf("%p\n", vectors[15]);
-    vectors[15] = systick_handler;
-    __DSB();
-    printf("%p\n", vectors[15]);
+    hal5_set_vector(15, systick_handler);
 
     // must change CTRL first to set SysTick clock source 
     // mcc_get_systick_ck depends on it

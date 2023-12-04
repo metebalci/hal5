@@ -156,7 +156,10 @@ void hal5_change_sys_ck(
 }
 
 void hal5_change_sys_ck_to_pll1_p(
-        const uint32_t target_ck)
+        const uint32_t target_ck,
+        uint32_t* divm_out,
+        uint32_t* muln_out,
+        uint32_t* divp_out)
 {
     uint32_t divm, muln, divp;
     bool pll_config_found = hal5_rcc_search_pll_config_integer_mode(
@@ -166,21 +169,21 @@ void hal5_change_sys_ck_to_pll1_p(
 
     if (pll_config_found)
     {
-        CONSOLE("PLL config is found: /M=%lu xN=%lu /P=%lu.\n",
-                divm, muln, divp);
+        if (divm_out != NULL) *divm_out = divm;
+        if (muln_out != NULL) *muln_out = muln;
+        if (divp_out != NULL) *divp_out = divp;
 
         hal5_rcc_initialize_pll1_integer_mode(
                 pll_src_hsi,
                 divm, muln, divp, divp, divp,
                 true, false, false);
-        CONSOLE("PLL1 initialized.\n");
 
         hal5_change_sys_ck(sys_ck_src_pll1);
-        CONSOLE("SYSCLK is now PLL1_P.\n");
     }
     else
     {
         CONSOLE("PLL config not found.\n");
+        assert (false);
     }
 
 }

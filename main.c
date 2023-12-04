@@ -90,7 +90,11 @@ void boot(void) {
 
     hal5_watchdog_configure(5000);
 
-    hal5_change_sys_ck_to_pll1_p(240000000);
+    uint32_t divm, muln, divp;
+    hal5_change_sys_ck_to_pll1_p(240000000, &divm, &muln, &divp);
+    printf("PLL config is found: /M=%lu xN=%lu /P=%lu.\n",
+            divm, muln, divp);
+    printf("SYSCLK is now PLL1_P.\n");
 
     //hal5_rcc_dump_clock_info();
 

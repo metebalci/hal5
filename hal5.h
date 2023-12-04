@@ -40,8 +40,12 @@ void hal5_debug_pulse(void);
 
 void hal5_change_sys_ck(
         const hal5_rcc_sys_ck_src_t src);
+
 void hal5_change_sys_ck_to_pll1_p(
-        const uint32_t target_ck);
+        const uint32_t target_ck,
+        uint32_t* divm,
+        uint32_t* muln,
+        uint32_t* divp);
 
 void hal5_set_vector(
         uint32_t vector_number,

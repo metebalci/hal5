@@ -23,6 +23,7 @@
 #include <stm32h5xx.h>
 
 #include "hal5.h"
+#include "hal5_private.h"
 
 void hal5_pwr_enable_usb33(void) 
 {

@@ -23,6 +23,7 @@
 #include <stm32h5xx.h>
 
 #include "hal5.h"
+#include "hal5_private.h"
 
 // this table is from the reference manual
 // only lists frequencies

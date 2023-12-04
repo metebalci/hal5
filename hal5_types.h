@@ -18,12 +18,28 @@
  * limitations under the License.
  */
 
-#ifndef __MCU_TYPES_H__
-#define __MCU_TYPES_H__
+#ifndef __HAL5_TYPES_H__
+#define __HAL5_TYPES_H__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// stack frame when hardfault is handled
+// see main.c and startup_stm32h5xx.c for example
+// pc contains where fault happened
+// lr contains 
+typedef __PACKED_STRUCT
+{
+    uint32_t r0;
+    uint32_t r1;
+    uint32_t r2;
+    uint32_t r3;
+    uint32_t r12;
+    uint32_t lr;
+    uint32_t pc;
+} hal5_exception_stack_frame_t;
+
 
 // FLASH
 typedef enum

@@ -23,6 +23,7 @@
 #include <stm32h5xx.h>
 
 #include "hal5.h"
+#include "hal5_private.h"
 
 // not using the SysTick_Config in CMSIS
 

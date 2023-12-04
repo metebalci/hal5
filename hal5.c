@@ -23,6 +23,7 @@
 #include <stm32h5xx.h>
 
 #include "hal5.h"
+#include "hal5_private.h"
 
 static const char* CFSR_BIT_DESCRIPTIONS[] = {
     // MMFSR, MemManage Fault Status Register
@@ -182,20 +183,34 @@ void hal5_change_sys_ck_to_pll1_p(
 
 }
 
-void hal5_debug_configure()
+static GPIO_TypeDef* debug_pin_port = 0;
+static uint32_t debug_pin_set       = 0;
+static uint32_t debug_pin_reset     = 0;
+
+void hal5_debug_configure(const hal5_gpio_pin_t pin)
 {
     hal5_gpio_configure_as_output(
-            PA0,
+            pin,
             output_pp_floating,
             high_speed);
-    hal5_gpio_reset(PA0);
+
+    hal5_gpio_reset(pin);
+
+    const uint32_t port_index = (pin >> 8) & 0xFF;
+
+    debug_pin_port = (GPIO_TypeDef*) (GPIOA_BASE + 0x0400UL * port_index);
+
+    const uint32_t pin_number = pin & 0xFF;
+
+    debug_pin_set   = pin_number;
+    debug_pin_reset = pin_number << 16;
 }
 
 inline void hal5_debug_pulse()
 {
     // PA0 set then reset
-    GPIOA->BSRR = 0x00000001UL;
+    debug_pin_port->BSRR = debug_pin_set;
     __DSB(); // make sure the above completed
-    GPIOA->BSRR = 0x00010000UL;
+    debug_pin_port->BSRR = debug_pin_reset;
     __DSB(); // make sure the above completed
 }

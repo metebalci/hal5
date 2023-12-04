@@ -24,6 +24,7 @@
 #include <stm32h5xx.h>
 
 #include "hal5.h"
+#include "hal5_private.h"
 
 static I2C_TypeDef* const i2c = I2C2;
 

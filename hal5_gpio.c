@@ -23,6 +23,7 @@
 #include <stm32h5xx.h>
 
 #include "hal5.h"
+#include "hal5_private.h"
 
 static GPIO_TypeDef* const gpio_ports[] = {
     GPIOA,

@@ -24,6 +24,7 @@
 #include <stm32h5xx.h>
 
 #include "hal5.h"
+#include "hal5_private.h"
 
 #ifdef NDEBUG
 
@@ -40,7 +41,7 @@ void __assert_func(const char *file,
 {
     CONSOLE("ASSERT %s:%d %s() %s\n", file, line, func, failedexpr);
 
-    hal5_freeze();
+    __asm("bkpt 1");
 }
 
 #endif

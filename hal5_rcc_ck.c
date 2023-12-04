@@ -23,6 +23,7 @@
 #include <stm32h5xx.h>
 
 #include "hal5.h"
+#include "hal5_private.h"
 
 static uint32_t lse_ck = 0;
 static uint32_t hse_ck = 0;

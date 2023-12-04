@@ -18,39 +18,13 @@
  * limitations under the License.
  */
 
-#ifndef __MCU_H__
-#define __MCU_H__
+#ifndef __HAL5_H__
+#define __HAL5_H__
 
 #include <stdbool.h>
 #include <stdint.h>
 
 #include <stm32h5xx.h>
-
-#define CONSOLE(f_, ...) printf((f_), ##__VA_ARGS__)
-
-// these are used for printf-style debugging
-// in case of a name clash, they can be removed/commented out
-#define SHOWP(p) (CONSOLE("" #p ": %p\n", (void*)p))
-#define SHOWU(u) (CONSOLE("" #u ": %lu (0x%08lX)\n", (uint32_t)u, (uint32_t)u))
-#define MARK(n) (CONSOLE("----- MARK %d -----\n", n))
-#define MARKA (CONSOLE("----- MARK A -----\n"))
-#define MARKB (CONSOLE("----- MARK B -----\n"))
-
-// https://stackoverflow.com/a/58532788/313811
-#define HAL5_MAX(a,b)        \
-({                           \
-    __typeof__ (a) _a = (a); \
-    __typeof__ (b) _b = (b); \
-    _a > _b ? _a : _b;       \
-})
-
-// https://stackoverflow.com/a/58532788/313811
-#define HAL5_MIN(a,b)        \
-({                           \
-    __typeof__ (a) _a = (a); \
-    __typeof__ (b) _b = (b); \
-    _a < _b ? _a : _b;       \
-})
 
 #include "hal5_types.h"
 
@@ -58,10 +32,12 @@
 extern "C" {
 #endif
 
+// useful when hardfault happens
 void hal5_dump_cfsr_info(void);
-void hal5_debug_configure(void);
+
+void hal5_debug_configure(const hal5_gpio_pin_t pin);
 void hal5_debug_pulse(void);
-void hal5_freeze(void);
+
 void hal5_change_sys_ck(
         const hal5_rcc_sys_ck_src_t src);
 void hal5_change_sys_ck_to_pll1_p(

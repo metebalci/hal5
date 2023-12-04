@@ -25,26 +25,15 @@
 #include "bsp.h"
 #include "hal5.h"
 
-typedef __PACKED_STRUCT
-{
-    uint32_t r0;
-    uint32_t r1;
-    uint32_t r2;
-    uint32_t r3;
-    uint32_t r12;
-    uint32_t lr;
-    uint32_t pc;
-} exception_stack_frame_t;
-
 void HardFault_Callback(const void* stack_frame)
 {
-    const exception_stack_frame_t* sf = 
-        (exception_stack_frame_t*) stack_frame;
+    const hal5_exception_stack_frame_t* sf = 
+        (hal5_exception_stack_frame_t*) stack_frame;
 
-    CONSOLE("HardFault pc=0x%08lX lr=0x%08lX\n", sf->pc, sf->lr);
+    printf("HardFault pc=0x%08lX lr=0x%08lX\n", sf->pc, sf->lr);
     bsp_fault();
     hal5_dump_cfsr_info();
-    hal5_freeze();
+    __asm("bkpt 1");
 }
 
 void button_callback(void)
@@ -66,7 +55,7 @@ void boot(void) {
 
     hal5_console_dump_info();
 
-    CONSOLE("Booting...\n");
+    printf("Booting...\n");
 
     const hal5_rcc_reset_status_t reset_status = 
         hal5_rcc_get_reset_status();
@@ -74,25 +63,25 @@ void boot(void) {
     switch (reset_status)
     {
         case reset_status_independent_watchdog:
-            CONSOLE("Due to watchdog reset...\n");
+            printf("Due to watchdog reset...\n");
             break;
 
         case reset_status_system_reset_by_cpu:
-            CONSOLE("Due to CPU reset...\n");
+            printf("Due to CPU reset...\n");
             break;
 
         case reset_status_bor:
-            CONSOLE("Due to brown-out reset...\n");
+            printf("Due to brown-out reset...\n");
             break;
 
         default:
     }
 
     hal5_icache_enable();
-    CONSOLE("ICACHE enabled.\n");
+    printf("ICACHE enabled.\n");
 
     hal5_flash_enable_prefetch();
-    CONSOLE("Prefetch enabled.\n");
+    printf("Prefetch enabled.\n");
 
     // configure bsp first
     // required for showing progress (on leds)
@@ -106,19 +95,19 @@ void boot(void) {
     //hal5_rcc_dump_clock_info();
 
     hal5_rcc_enable_mco2(mco2sel_sysclk, 0);
-    CONSOLE("MCO2 shows SYSCLK.\n");
+    printf("MCO2 shows SYSCLK.\n");
 
     hal5_systick_configure();
-    CONSOLE("SYSTICK configured.\n");
+    printf("SYSTICK configured.\n");
 
     hal5_rng_enable();
     // initialize random from an RNG seed
     const uint32_t seed = hal5_rng_random();
     srand(seed);
-    CONSOLE("RNG enabled. [%08lX]\n", seed);
+    printf("RNG enabled. [%08lX]\n", seed);
 
     bsp_boot_completed();
-    CONSOLE("Boot completed.\n");
+    printf("Boot completed.\n");
 
     hal5_console_normal_colors();
 }

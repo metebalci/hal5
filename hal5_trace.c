@@ -22,9 +22,10 @@
 
 #include <stm32h5xx.h>
 
-#include "mcu.h"
+#include "hal5.h"
+#include "hal5_private.h"
 
-void mcu_configure_trace()
+void hal5_configure_trace()
 {
   /*
   // enable GPIO port E clock

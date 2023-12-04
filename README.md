@@ -19,6 +19,8 @@ The source code in this repository can be divided into four groups:
 
 - test project: includes `main.c` and `syscalls.c`.
 
+Startup, board support and test project files are used to build the test project `hal5.elf`.
+
 # Main Features
 
 - API limits the ambiguity and error-prone operations i.e. GPIO configuration can only be made for valid configurations. This is mostly accomplished by using enums for the input and output arguments of public functions, no bit fields or masks are used.
@@ -76,7 +78,7 @@ USB support is in another repo: [hal5_usb](https://github.com/metebalci/hal5_usb
 
 The project is tested with a [NUCLEO-H563ZI development board](https://www.st.com/en/evaluation-tools/nucleo-h563zi.html).
 
-`make` builds the library (`hal5.a`) and the firmware (`test.elf`) containing the test project. Before building, it downloads (clones) CMSIS 5.9.0 and STM32CubeH5 1.1.0 from github.
+`make` builds the library (`hal5.a`) and the firmware (`hal5.elf`) containing the test project. Before building, it downloads (clones) CMSIS 5.9.0 and STM32CubeH5 1.1.0 from github.
 
 `make flash` builds the firmware containing the test project and programs the firmware to the MCU using STM32_Programmer_CLI.
 

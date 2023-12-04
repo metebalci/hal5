@@ -67,11 +67,11 @@ CC := arm-none-eabi-gcc
 AR := arm-none-eabi-ar
 RM := rm -f
 
-all: clean hal5.a test.elf
+all: clean hal5.a hal5.elf
 
 clean:
 	$(RM) hal5.a
-	$(RM) test.elf
+	$(RM) hal5.elf
 	$(RM) *.o
 
 %.o: %.c | cmsis cmsis_device_h5
@@ -87,13 +87,13 @@ hal5.a: $(HAL5_OBJS)
 	echo $(CC)
 	$(AR) rcs $@ $(HAL5_OBJS)
 
-test.elf: $(ELF_OBJS) hal5.a
+hal5.elf: $(ELF_OBJS) hal5.a
 	$(CC) -T"startup.ld" $(LDFLAGS) -o $@ $(ELF_OBJS) hal5.a
 
 # programmer
 STM32PRG ?= STM32_Programmer_CLI --verbosity 1 -c port=swd mode=HOTPLUG speed=Reliable
 
-flash: test.elf
+flash: hal5.elf
 	$(STM32PRG) --write $<
 	$(STM32PRG) -hardRst
 

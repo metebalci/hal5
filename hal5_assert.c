@@ -26,22 +26,33 @@
 #include "hal5.h"
 #include "hal5_private.h"
 
-#ifdef NDEBUG
-
-// newlib uses __assert_func
-// glibc uses __assert_fail
+#ifndef NDEBUG
 
 // this should not return
 // return address is not saved by the caller
-    _ATTRIBUTE ((__noreturn__))
-void __assert_func(const char *file,
+
+// newlib uses __assert_func
+__attribute__ ((__noreturn__))
+void __assert_func(
+        const char* file,
         int line,
-        const char *func,
-        const char *failedexpr) 
+        const char* func,
+        const char* failedexpr) 
 {
     CONSOLE("ASSERT %s:%d %s() %s\n", file, line, func, failedexpr);
+    while (1); // no return
+}
 
-    __asm("bkpt 1");
+// glibc uses __assert_fail
+__attribute__ ((__noreturn__))
+void __assert_fail(
+        const char* assertion,
+        const char* file,
+        unsigned int line,
+        const char* function)
+{
+    CONSOLE("ASSERT %s:%u %s() %s\n", file, line, function, assertion);
+    while (1); // no return
 }
 
 #endif

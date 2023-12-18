@@ -29,18 +29,6 @@
 
 static uint8_t digest[64];
 
-static hal5_hash_algorithm_t algorithms[8] =
-{
-    hal5_hash_sha1,
-    hal5_hash_reserved,
-    hal5_hash_sha2_224,
-    hal5_hash_sha2_256,
-    hal5_hash_sha2_384,
-    hal5_hash_sha2_512_224,
-    hal5_hash_sha2_512_256,
-    hal5_hash_sha2_512
-};
-
 uint32_t hal5_hash_get_digest_size(hal5_hash_algorithm_t algorithm)
 {
     switch (algorithm)
@@ -68,20 +56,68 @@ uint32_t hal5_hash_get_digest_size(hal5_hash_algorithm_t algorithm)
 
 static uint32_t get_algorithm_encoding(hal5_hash_algorithm_t algorithm)
 {
-    for (uint32_t i = 0; i < sizeof(algorithms)/sizeof(hal5_hash_algorithm_t); i++)
+    switch (algorithm)
     {
-        if (algorithms[i] == algorithm) return i;
-    }
+        case hal5_hash_sha1:
+            return 0b0000;
 
-    assert (false);
+        case hal5_hash_sha2_224:
+            return 0b0010;
+
+        case hal5_hash_sha2_256:
+            return 0b0011;
+
+        case hal5_hash_sha2_384:
+            return 0b1100;
+
+        case hal5_hash_sha2_512_224:
+            return 0b1101;
+
+        case hal5_hash_sha2_512_256:
+            return 0b1110;
+
+        case hal5_hash_sha2_512:
+            return 0b1111;
+
+        default:
+            assert (false);
+    }
 
     return 0;
 }
 
 static hal5_hash_algorithm_t get_algorithm(void)
 {
-    const uint32_t algorithm = ((HASH->CR & HASH_CR_ALGO_Msk) >> HASH_CR_ALGO_Pos);
-    return algorithms[algorithm];
+    const uint32_t algorithm = (HASH->CR & HASH_CR_ALGO_Msk) >> HASH_CR_ALGO_Pos;
+
+    switch (algorithm)
+    {
+        case 0b0000:
+            return hal5_hash_sha1;
+
+        case 0b0010:
+            return hal5_hash_sha2_224;
+
+        case 0b0011:
+            return hal5_hash_sha2_256;
+
+        case 0b1100:
+            return hal5_hash_sha2_384;
+
+        case 0b1101:
+            return hal5_hash_sha2_512_224;
+
+        case 0b1110:
+            return hal5_hash_sha2_512_256;
+
+        case 0b1111:
+            return hal5_hash_sha2_512;
+
+        default:
+            assert (false);
+    }
+
+    return 0;
 }
 
 void hal5_hash_enable(void) 

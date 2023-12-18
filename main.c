@@ -45,7 +45,7 @@ void boot(void) {
     hal5_rcc_initialize();
 
     // configure console as early as possible
-    // console uses LPUART1 running with LSI
+    // console uses LPUART1 running with CSI
     hal5_console_configure(921600, false);
 
     // clear screen and set fg color to red
@@ -88,6 +88,7 @@ void boot(void) {
     // might be required if external clocks are used
     bsp_configure(button_callback);
 
+    /*
     hal5_watchdog_configure(5000);
 
     uint32_t divm, muln, divp;
@@ -95,6 +96,7 @@ void boot(void) {
     printf("PLL config is found: /M=%lu xN=%lu /P=%lu.\n",
             divm, muln, divp);
     printf("SYSCLK is now PLL1_P.\n");
+    */
 
     //hal5_rcc_dump_clock_info();
 
@@ -110,6 +112,8 @@ void boot(void) {
     srand(seed);
     printf("RNG enabled. [%08lX]\n", seed);
 
+    hal5_hash_enable();
+
     bsp_boot_completed();
     printf("Boot completed.\n");
 
@@ -119,8 +123,6 @@ void boot(void) {
 int main(void) 
 {
     boot();
-
-    const bool flower = true;
 
     uint32_t last = hal5_slow_ticks;
 
@@ -132,7 +134,6 @@ int main(void)
         if (now > last) {
             last = now;
             bsp_heartbeat();
-            //mcu_console_heartbeat();
         }
 
         char ch;

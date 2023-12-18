@@ -150,6 +150,10 @@ void hal5_rcc_enable_gpio_port_by_index(uint32_t port_index)
     SET_BIT(RCC->AHB2ENR, RCC_AHB2ENR_GPIOAEN << port_index);
 }
 
+void hal5_rcc_enable_hash() {
+    SET_BIT(RCC->AHB2ENR, RCC_AHB2ENR_HASHEN);
+}
+
 void hal5_rcc_enable_lpuart1() {
     SET_BIT(RCC->APB3ENR, RCC_APB3ENR_LPUART1EN);
 }

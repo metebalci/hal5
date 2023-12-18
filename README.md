@@ -1,13 +1,13 @@
 
 # HAL5
 
-*This is still a work-in-progress.*
+*This is a work-in-progress.*
 
-HAL5 is a high-level system API for STM32H5 Cortex-M33 MCUs, particularly for STM32H563/573. It does not depend on STM32 HAL, but only CMSIS. It is not a HAL per se since the current aim is to support only STM32H5 series, however the functionality is like HAL and even higher level than a HAL.
+HAL5 is a high-level system API for STM32H5 Cortex-M33 MCUs, particularly for STM32H563/573. It does not depend on STM32 HAL, but only CMSIS (and STM32H5 CMSIS Components). It is not a HAL per se since the current aim is to support only STM32H5 series, however the functionality is like HAL and even higher level than a HAL. HAL in HAL5 actually refers to [HAL 9000](https://en.wikipedia.org/wiki/HAL_9000).
 
-The main purpose at the moment is neither to support all features of the MCU nor to have production quality, but to provide an easy and a robust API to learn, study and experiment with STM32H5 MCUs. HAL5 is a result of my frustration with existing APIs and the way I prefer to study the MCUs.
+The grand purpose of this API is to support all features in STM32H5, however it is going to take time. It is not an aim to have a high performance and/or memory-optimized library, but to provide an easy and a robust API to learn, study and experiment with STM32H5 MCUs. HAL5 is a result of my frustration with existing APIs and the way I prefer to study the MCUs.
 
-The only two dependencies of the project are [CMSIS (Arm) 5.9.0](https://github.com/ARM-software/CMSIS_5) and [STM32CubeH5 CMSIS Device MCU Component (ST) 1.1.0](https://github.com/STMicroelectronics/cmsis_device_h5). STM32CubeH5 is used for TypeDefs, Register, Msk and Pos macro definitions and macro functions like CLEAR_BIT, SET_BIT, MODIFY_REG.
+The only two dependencies of the project are [CMSIS (Arm) 5.9.0](https://github.com/ARM-software/CMSIS_5) and [STM32CubeH5 CMSIS Device MCU Component (ST) 1.1.0](https://github.com/STMicroelectronics/cmsis_device_h5). It is actually possible to remove these dependencies and auto-generate the register definitiosn from SVD files (which I already tried). However, I do not think it brings enough benefits yet. STM32CubeH5 is used for TypeDefs, Register, Msk and Pos macro definitions and macro functions like CLEAR_BIT, SET_BIT, MODIFY_REG.
 
 The source code in this repository can be divided into four groups:
 
@@ -19,15 +19,20 @@ The source code in this repository can be divided into four groups:
 
 - test project: includes `main.c` and `syscalls.c`.
 
-Startup, board support and test project files are used to build the test project `hal5.elf`.
+Startup, board support and test project files are used to build the test project `hal5.elf`. Test project has no meaning, it is only here as an example. I keep more meaningful examples in separate repositories, such as:
+
+- [hal5_cavp](https://github.com/metebalci/hal5_cavp): CAVP validation for Crypto functions.
+- [hal5_freertos](https://github.com/metebalci/hal5_freertos): An example using FreeRTOS with HAL5.
 
 # Main Features
 
-- API limits the ambiguity and error-prone operations i.e. GPIO configuration can only be made for valid configurations. This is mostly accomplished by using enums for the input and output arguments of public functions, no bit fields or masks are used.
+- API limits the ambiguity and error-prone configuration i.e. GPIO configuration can only be made for valid configurations. This is mostly accomplished by using enums for the input and output arguments of public functions, no bit fields or masks are used.
+
+- C macro based configurations are avoided. Instead, the normal, C API calls has to be used. For example, in order to enable RNG, `hal5_rng_enable()` should be called, which does everything required such as enabling HSI48 clock source. This approach probably results not an optimized code, but it is more clear, easy to use and extend.
 
 - No error is returned from most of the API functions. This is because most, if not all, of these functions are related to hardware and there is no temporary errors. A call resulting an error will always result an error with the same parameters, so it should not be handled in the software. Instead, assertions are often used to see where the issue is. For example, if something is supplied for PLL configuration that is impossible to satisfy in the hardware, no error is returned but an assertion is failed within the relevant function.
 
-- API provides functions returning the actual frequency of various clocks in the clock tree e.g. `hal5_rcc_pll1_p_ck()`. These values are not cached (and there is no clock update function) but queried from the hardware when requested.
+- API provides functions returning the actual frequency of various clocks in the clock tree e.g. `hal5_rcc_pll1_p_ck()`. These values are not cached (and there is no clock update function) but queried from the hardware when requested. So, the clock configuration is usually simpler.
 
 - CMSIS SysTick_Config is not used but a System tick (actually two ticks) is implemented, one in millisecond, the other is in second resolution.
 
@@ -51,23 +56,6 @@ The system core clock (`sys_ck`) can be changed with `hal5_change_sys_ck` which 
 
 The system core clock (`sys_ck`) can be changed to `pll1_p` with `hal5_change_sys_ck_to_pll1_p` with a single target frequency parameter. This will search for a PLL configuration, initialize it, and change `sys_ck` to `pll1_p` (and automatically adjusts flash latency and voltage scaling).
 
-# Test Project
-
-```
-Console is LPUART1. 921600, 8N1.
-Booting...
-Due to CPU reset...
-ICACHE enabled.
-Prefetch enabled.
-PLL config is found: /M=2 xN=30 /P=2.
-PLL1 initialized.
-SYSCLK is now PLL1_P.
-MCO2 shows SYSCLK.
-SYSTICK configured.
-RNG enabled. [9B02FC8D]
-Boot completed.
-```
-
 # Startup and Linker Script
 
 Based on CMSIS C-based startup (`startup_ARMCM33.c`) and linker script (`gnu_arm.ld`), a C-based startup is used.
@@ -84,8 +72,6 @@ Core functionality of small number of peripherals are supported.
 - I2C supports I2C2, because it is convenient to use I2C2 pins on NUCLEO-H563ZI board.
 
 Peripheral routines are not runtime configurable in the sense that I2C support cannot be changed to I2C1 without re-compiling the library.
-
-USB support is in another repo: [hal5_usb](https://github.com/metebalci/hal5_usb).
 
 # Build and Test
 

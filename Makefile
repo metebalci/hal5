@@ -52,12 +52,17 @@ LDFLAGS += -static
 LDFLAGS += --specs=nano.specs
 LDFLAGS += -Wl,--start-group -lc -lm -Wl,--end-group
 
-HAL5_OBJS := hal5.o hal5_assert.o 
-HAL5_OBJS += hal5_cache.o hal5_console.o hal5_crs.o
-HAL5_OBJS += hal5_flash.o hal5_gpio.o hal5_i2c.o hal5_lpuart.o
-HAL5_OBJS += hal5_pwr.o hal5_rcc.o hal5_rcc_ck.o
-HAL5_OBJS += hal5_rng.o hal5_systick.o
+# main
+HAL5_OBJS := hal5.o hal5_assert.o hal5_console.o
+# core peripherals
+HAL5_OBJS += hal5_systick.o
+HAL5_OBJS += hal5_flash.o hal5_pwr.o hal5_rcc.o hal5_rcc_ck.o
+HAL5_OBJS += hal5_cache.o hal5_crs.o
 HAL5_OBJS += hal5_watchdog.o
+# GPIO and comms
+HAL5_OBJS += hal5_gpio.o hal5_i2c.o hal5_lpuart.o
+# crypto peripherals
+HAL5_OBJS += hal5_hash.o hal5_rng.o
 
 ELF_OBJS := startup_stm32h5.o syscalls.o
 ELF_OBJS += main.o bsp_nucleo_h563zi.o
@@ -88,6 +93,7 @@ hal5.a: $(HAL5_OBJS)
 
 hal5.elf: $(ELF_OBJS) hal5.a
 	$(CC) -T"startup.ld" $(LDFLAGS) -o $@ $(ELF_OBJS) hal5.a
+	arm-none-eabi-objdump -S -D hal5.elf > hal5.elf.txt
 
 # programmer
 STM32PRG ?= STM32_Programmer_CLI --verbosity 1 -c port=swd mode=HOTPLUG speed=Reliable

@@ -127,6 +127,20 @@ typedef enum
   very_high_speed
 } hal5_gpio_output_speed_t;
 
+// HASH
+
+typedef enum
+{
+    hal5_hash_reserved,
+    hal5_hash_sha1,
+    hal5_hash_sha2_224,
+    hal5_hash_sha2_256,
+    hal5_hash_sha2_384,
+    hal5_hash_sha2_512_224,
+    hal5_hash_sha2_512_256,
+    hal5_hash_sha2_512,
+} hal5_hash_algorithm_t;
+
 // PWR
 
 typedef enum 

@@ -153,6 +153,24 @@ void hal5_gpio_configure_exti(
         const bool falling_edge_trigger,
         void (*callback)(void));
 
+// HASH
+
+void hal5_hash_enable(void);
+
+void hal5_hash_init_for_hash(
+        const hal5_hash_algorithm_t algorithm);
+
+void hal5_hash_update(
+        const uint8_t* data, 
+        const uint32_t offset,
+        const uint32_t len);
+
+void hal5_hash_finalize(void);
+
+uint8_t* hal5_hash_get_digest(void);
+
+uint32_t hal5_hash_get_digest_size(hal5_hash_algorithm_t algorithm);
+
 // I2C
 
 void hal5_i2c_configure();
@@ -215,6 +233,8 @@ bool hal5_rcc_is_hsi48_enabled(void);
 
 void hal5_rcc_enable_gpio_port_by_index(
         const uint32_t port_index);
+
+void hal5_rcc_enable_hash(void);
 
 void hal5_rcc_enable_lpuart1(void);
 

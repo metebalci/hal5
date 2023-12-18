@@ -64,9 +64,10 @@ HAL5_OBJS += hal5_gpio.o hal5_i2c.o hal5_lpuart.o
 # crypto peripherals
 HAL5_OBJS += hal5_hash.o hal5_rng.o
 
-ELF_OBJS := hal5_startup/startup_stm32h5.o 
-ELF_OBJS += hal5_startup/syscalls.o
-ELF_OBJS += hal5_startup/bsp_nucleo_h563zi.o
+STARTUP_OBJS := hal5_startup/startup_stm32h5.o 
+STARTUP_OBJS += hal5_startup/syscalls.o
+STARTUP_OBJS += hal5_startup/bsp_nucleo_h563zi.o
+
 ELF_OBJS += main.o
 
 # compiler
@@ -74,17 +75,16 @@ CC := arm-none-eabi-gcc
 AR := arm-none-eabi-ar
 RM := rm -f
 
-all: clean hal5.a hal5.elf
+all: clean hal5.a hal5.elf flash
 
 clean:
 	$(RM) hal5.a
+	$(RM) $(HAL5_OBJS)
 	$(RM) hal5.elf
-	$(RM) *.o
+	$(RM) $(ELF_OBJS)
+	$(RM) $(STARTUP_OBJS)
 
-hal5_startup/%.o: %.c | hal5_startup
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-%.o: %.c | cmsis cmsis_device_h5 hal5_startup
+%.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 hal5_startup:
@@ -96,11 +96,11 @@ cmsis:
 cmsis_device_h5:
 	git clone --depth 1 -b v1.1.0 https://github.com/STMicroelectronics/cmsis_device_h5 cmsis_device_h5
 
-hal5.a: $(HAL5_OBJS)
+hal5.a: cmsis cmsis_device_h5 $(HAL5_OBJS)
 	$(AR) rcs $@ $(HAL5_OBJS)
 
-hal5.elf: $(ELF_OBJS) hal5.a hal5_startup/startup.ld
-	$(CC) -T"hal5_startup/startup.ld" $(LDFLAGS) -o $@ $(ELF_OBJS) hal5.a
+hal5.elf: hal5_startup $(ELF_OBJS) $(STARTUP_OBJS) hal5.a hal5_startup/startup.ld
+	$(CC) -T"hal5_startup/startup.ld" $(LDFLAGS) -o $@ $(ELF_OBJS) $(STARTUP_OBJS) hal5.a
 	arm-none-eabi-objdump -S -D hal5.elf > hal5.elf.txt
 
 # programmer

@@ -13,16 +13,16 @@ The source code in this repository can be divided into four groups:
 
 - hal5 source files: provides hal5 system API and implementation. All files start with `hal5`. These are built to a static library named `hal5.a`. Only `hal5.h` needs to be included by the users and the program should be linked with `hal5.a`.
 
-- startup file and link script: `startup_stm32h563.c` and `startup.ld`.
+- board support header file: `bsp.h`. Implementations can be found in [hal5_startup](https://github.com/metebalci/hal5_startup) repository.
 
-- board support package: `bsp.h` and `bsp_nucleo_h563zi.c` as an example to support NUCLEO-H563ZI with the test project.
+- test project: includes `main.c`.
 
-- test project: includes `main.c` and `syscalls.c`.
-
-Startup, board support and test project files are used to build the test project `hal5.elf`. Test project has no meaning, it is only here as an example. I keep more meaningful examples in separate repositories, such as:
+The test project in this repository has no meaning, it is only here as a build example, and support development. More meaningful examples are in separate repositories, such as:
 
 - [hal5_cavp](https://github.com/metebalci/hal5_cavp): CAVP validation for Crypto functions.
 - [hal5_freertos](https://github.com/metebalci/hal5_freertos): An example using FreeRTOS with HAL5.
+
+Also, because all these repositories with an executable output would need startup files, I keep the startup and board support implementations in [hal5_startup](https://github.com/metebalci/hal5_startup) repository.
 
 # Main Features
 
